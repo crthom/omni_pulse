@@ -1,16 +1,16 @@
 export const DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
 export const STOPS = [
-  { id: 1, name: 'Central Station', lng: -122.417, lat: 37.758 },
-  { id: 2, name: 'Market & 5th', lng: -122.407, lat: 37.770 },
-  { id: 3, name: 'Union Square', lng: -122.400, lat: 37.785 },
+  { id: 1, name: 'Central Station', lng: -122.4745, lat: 37.758 },
+  { id: 2, name: 'Market & 5th', lng: -122.437, lat: 37.759 },
+  { id: 3, name: 'Union Square', lng: -122.405, lat: 37.765 },
   { id: 4, name: 'Chinatown Gate', lng: -122.393, lat: 37.791 },
   { id: 5, name: 'North Beach', lng: -122.403, lat: 37.801 },
   { id: 6, name: 'Fishermans Wharf', lng: -122.415, lat: 37.805 },
   { id: 7, name: 'Marina District', lng: -122.439, lat: 37.802 },
-  { id: 8, name: 'Presidio Gate', lng: -122.428, lat: 37.793 },
+  { id: 8, name: 'Presidio Gate', lng: -122.445, lat: 37.789 },
   { id: 9, name: 'Richmond District', lng: -122.465, lat: 37.785 },
-  { id: 10, name: 'Sunset Plaza', lng: -122.490, lat: 37.775 },
+  { id: 10, name: 'Sunset Plaza', lng: -122.480, lat: 37.775 },
 ];
 
 export const ROUTE_COORDINATES = [
@@ -30,18 +30,18 @@ export const SIM_CONFIG = {
   baseFleetSize: 8,
   dynamicMinActive: 4,
   dynamicRushActive: 8,
-  maxFleetSize: 50,
-  deploymentLimitPerDay: 50,
+  maxFleetSize: 40,
+  deploymentLimitPerDay: 40,
   rushMorningStart: 7 * 60,
-  rushMorningEnd: 9 * 60 + 30,
+  rushMorningEnd: 9 * 60,
   middayRushStart: 12 * 60,
-  middayRushEnd: 13 * 60 + 30,
+  middayRushEnd: 13 * 60,
   rushEveningStart: 17 * 60,
   rushEveningEnd: 20 * 60,
-  congestionThreshold: 10,
-  severeThreshold: 22,
+  congestionThreshold: 15,
+  severeThreshold: 30,
   dailyVariationMinutes: 10,
-  alertCooldownMinutes: 15,
+  alertCooldownMinutes: 25,
 };
 
 export function getDailyScheduleOffset(dayIndex) {

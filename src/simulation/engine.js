@@ -165,7 +165,7 @@ function generateDynamicDeploymentSchedule(dayStart, totalDeployments, events, w
   const offPeakDeployments = totalDeployments - peakDeployments;
 
   const peakSchedule = scheduleWithinIntervals(scheduleStart, peakIntervals, peakDeployments, (intervalIdx, itemIdx, slots) => {
-    return slots > 1 && itemIdx >= slots - 2;
+    return slots > 1 && itemIdx < 2;
   });
   const offPeakSchedule = scheduleWithinIntervals(scheduleStart, offPeakIntervals, offPeakDeployments, () => false);
 
@@ -233,7 +233,7 @@ function summarizeDay(prevState, endedDayIndex) {
 
 export function createInitialState() {
   nextPassengerId = 1;
-  const initialSimMinutes = 7 * 60;
+  const initialSimMinutes = 0 * 60;
   const initialScheduleMode = 'static';
   const initialSchedule = generateDeploymentSchedule(initialSimMinutes, initialScheduleMode, []);
 
@@ -255,7 +255,7 @@ export function createInitialState() {
       {
         id: 1,
         day: 'MON',
-        time: '7:00 AM',
+        time: '12:00 AM',
         type: 'info',
         message: 'Simulation initialized — Standard Static Schedule active.',
       },
@@ -288,11 +288,11 @@ export function spawnPassengers(stops, simMinutes, scheduleOffsetMinutes = 0) {
     let rate = 0.02;
 
     if (morningRush) {
-      rate = stop.id === 4 ? 0.75 : stop.id === 3 ? 0.38 : 0.28;
+      rate = stop.id === 4 ? 0.75 : stop.id === 3 ? 0.48 : 0.28;
     } else if (middayRush) {
       rate = stop.id === 3 ? 0.48 : stop.id === 5 ? 0.42 : 0.24;
     } else if (eveningRush) {
-      rate = stop.id === 4 ? 0.36 : stop.id === 6 ? 0.65 : stop.id === 8 ? 0.48 : 0.24;
+      rate = stop.id === 4 ? 0.46 : stop.id === 6 ? 0.73 : stop.id === 8 ? 0.58 : 0.24;
     }
 
     if (Math.random() >= rate) return;
