@@ -49,6 +49,7 @@ export default function App() {
           speed={speed}
           onSpeedChange={setSpeed}
           onReset={resetSimulation}
+          deploymentsToday={state.deploymentsToday}
         />
       </div>
       <DailyOverview overview={dailyOverview} onContinue={handleContinue} />

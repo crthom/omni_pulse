@@ -17,6 +17,7 @@ export default function OptimizationConsole({
   speed,
   onSpeedChange,
   onReset,
+  deploymentsToday,
 }) {
   return (
     <div className="flex h-full flex-col gap-4 overflow-y-auto p-5">
@@ -31,7 +32,7 @@ export default function OptimizationConsole({
 
       <ScheduleToggle mode={scheduleMode} onChange={onScheduleChange} />
 
-      <MetricsGrid formatted={formatted} metrics={metrics} staticComparison={staticComparison} />
+      <MetricsGrid formatted={formatted} metrics={metrics} staticComparison={staticComparison} deploymentsToday={deploymentsToday} />
 
       <WaitTimeChart
         history={waitTimeHistory}
