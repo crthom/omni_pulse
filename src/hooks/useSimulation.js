@@ -41,6 +41,8 @@ export function useSimulation() {
 
       const metrics = computeMetrics(next.stops, next.buses, simMinutes);
       const newCongestion = detectCongestion(next.stops, simMinutes, currentDay);
+      const staticComparison = next.scheduleMode === 'dynamic' ? computeStaticComparison(next.stops, next.buses, simMinutes) : null;
+      const staticWait = next.scheduleMode === 'dynamic' ? staticComparison.avgWaitTime : metrics.avgWaitTime;
 
       next = {
         ...next,
@@ -53,6 +55,17 @@ export function useSimulation() {
             satisfaction: metrics.passengerSatisfaction,
           },
         ],
+        staticWaitHistory:
+          next.scheduleMode === 'dynamic'
+            ? [
+                ...next.staticWaitHistory.slice(-120),
+                {
+                  time: formatted.time,
+                  day: formatted.day,
+                  staticWait,
+                },
+              ]
+            : [],
         congestionEvents: [...next.congestionEvents, ...newCongestion],
       };
 
@@ -162,6 +175,7 @@ export function useSimulation() {
     formatted,
     metrics,
     staticComparison,
+    staticWaitHistory: state.staticWaitHistory,
     stopsWithLevel,
     isRunning,
     setIsRunning,

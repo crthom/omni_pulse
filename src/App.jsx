@@ -31,6 +31,7 @@ export default function App() {
           formatted={formatted}
           metrics={metrics}
           staticComparison={staticComparison}
+          staticWaitHistory={state.staticWaitHistory}
           scheduleMode={state.scheduleMode}
           onScheduleChange={setScheduleMode}
           logs={state.logs}

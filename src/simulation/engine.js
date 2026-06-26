@@ -8,7 +8,7 @@ export function createInitialState() {
     simMinutes: 7 * 60,
     scheduleOffsetMinutes: getDailyScheduleOffset(0),
     scheduleMode: 'static',
-    buses: createFleet(4),
+    buses: createFleet(),
     stops: STOPS.map((stop) => ({
       ...stop,
       waiting: [],
@@ -25,24 +25,27 @@ export function createInitialState() {
       },
     ],
     waitTimeHistory: [],
+    staticWaitHistory: [],
     congestionEvents: [],
     optimizations: [],
+    scheduledOptimizations: [],
     auxiliaryBusScheduled: false,
     dayCount: 0,
   };
 }
 
-function createFleet(count, startId = 1) {
+function createFleet(activeCount = SIM_CONFIG.baseFleetSize, totalCount = SIM_CONFIG.maxFleetSize, startId = 1) {
   const buses = [];
-  for (let i = 0; i < count; i++) {
+  for (let i = 0; i < totalCount; i++) {
     buses.push({
       id: startId + i,
       label: `Bus ${startId + i}`,
       segmentIndex: i % STOPS.length,
-      progress: (i / count) * 0.85,
+      progress: (i / activeCount) * 0.85,
       passengers: 0,
       isAuxiliary: false,
       direction: 1,
+      active: i < activeCount,
     });
   }
   return buses;
@@ -105,19 +108,11 @@ function processStopVisit(bus, stop, simMinutes, scheduleMode) {
 }
 
 export function moveBuses(buses, stops, simMinutes, scheduleMode) {
-  const minutesOfDay = simMinutes % (24 * 60);
-  const rush = isRushHour(minutesOfDay);
-
-  let segmentMinutes = SIM_CONFIG.staticSegmentMinutes;
-  if (scheduleMode === 'dynamic') {
-    segmentMinutes = rush
-      ? SIM_CONFIG.dynamicSegmentMinutes
-      : SIM_CONFIG.offPeakSegmentMinutes;
-  }
+  const segmentMinutes = SIM_CONFIG.staticSegmentMinutes;
 
   buses.forEach((bus) => {
-    const speedMult = bus.isAuxiliary && rush ? 1.2 : 1;
-    bus.progress += (SIM_CONFIG.minutesPerTick / segmentMinutes) * speedMult;
+    if (!bus.active) return;
+    bus.progress += SIM_CONFIG.minutesPerTick / segmentMinutes;
 
     while (bus.progress >= 1) {
       bus.progress -= 1;
@@ -139,11 +134,10 @@ export function computeMetrics(stops, buses, simMinutes) {
         ) / allWaiting
       : 0;
 
-  const loadFactor =
-    buses.reduce((sum, b) => sum + b.passengers, 0) /
-    Math.max(1, buses.length * SIM_CONFIG.busCapacity);
+  const activeBuses = buses.filter((b) => b.active);
+  const totalActiveCapacity = Math.max(1, activeBuses.length * SIM_CONFIG.busCapacity);
+  const loadFactor = buses.reduce((sum, b) => sum + b.passengers, 0) / totalActiveCapacity;
   const utilization = Math.round(loadFactor * 100);
-
   const satisfaction = Math.max(5, Math.min(100, 98 - avgWait * 3.2 - allWaiting * 1.1));
 
   return {
@@ -212,48 +206,152 @@ export function getHeadwayForMode(scheduleMode, simMinutes, optimizations) {
   const minutesOfDay = simMinutes % (24 * 60);
   const rush = isRushHour(minutesOfDay);
 
-  if (scheduleMode === 'static') return SIM_CONFIG.baseHeadwayMinutes;
+  if (scheduleMode === 'static') {
+    return rush ? SIM_CONFIG.baseHeadwayMinutes : SIM_CONFIG.offPeakHeadwayMinutes;
+  }
 
   const activeOpt = optimizations.some((o) => o.active);
-  if (activeOpt && rush) return SIM_CONFIG.dynamicHeadwayMinutes;
   if (rush) return SIM_CONFIG.dynamicHeadwayMinutes;
   return SIM_CONFIG.offPeakHeadwayMinutes;
 }
 
+function activateReserveBus(buses, segmentIndex = 2, progress = 0.35) {
+  const reserve = buses.find((bus) => !bus.active);
+  if (!reserve) return null;
+  reserve.active = true;
+  reserve.isAuxiliary = true;
+  reserve.segmentIndex = segmentIndex;
+  reserve.progress = progress;
+  reserve.passengers = 0;
+  return reserve;
+}
+
+function deactivateAuxiliaryBus(buses) {
+  const activeAux = buses.find((bus) => bus.active && bus.isAuxiliary);
+  if (!activeAux) return null;
+  activeAux.active = false;
+  activeAux.isAuxiliary = false;
+  activeAux.passengers = 0;
+  return activeAux;
+}
+
 export function runOptimizationTick(state) {
-  const { scheduleMode, stops, buses, logs, simMinutes } = state;
+  const { scheduleMode, stops, buses, logs, simMinutes, scheduledOptimizations = [] } = state;
   if (scheduleMode !== 'dynamic') return state;
+
+  let next = { ...state };
+
+  scheduledOptimizations.forEach((opt) => {
+    if (opt.applied || opt.triggerSimMinutes > simMinutes) return;
+    if (opt.type === 'activateReserve') {
+      const reserveBus = activateReserveBus(next.buses, opt.segmentIndex, opt.progress);
+      if (reserveBus) {
+        next.optimizations = [
+          ...next.optimizations,
+          {
+            id: Date.now(),
+            active: true,
+            stopId: opt.stopId,
+            description: opt.description,
+          },
+        ];
+        next.logs = addLog(
+          next.logs,
+          formatDay(simMinutes),
+          formatClock(simMinutes),
+          'optimization',
+          opt.description,
+          simMinutes
+        );
+        next.auxiliaryBusScheduled = true;
+      }
+    }
+    opt.applied = true;
+  });
+
+  const minutesOfDay = simMinutes % (24 * 60);
+  const rush = isRushHour(minutesOfDay);
+  const hasActiveAux = next.buses.some((bus) => bus.active && bus.isAuxiliary);
+  const totalWaiting = stops.reduce((sum, stop) => sum + stop.waiting.length, 0);
+
+  if (rush && !hasActiveAux) {
+    const reserveBus = activateReserveBus(next.buses, 2, 0.2);
+    if (reserveBus) {
+      next.auxiliaryBusScheduled = true;
+      next.optimizations = [
+        ...next.optimizations,
+        {
+          id: Date.now(),
+          active: true,
+          stopId: 4,
+          description: `Dynamic rush response: deploying ${reserveBus.label} to tighten spacing`,
+        },
+      ];
+      next.logs = addLog(
+        next.logs,
+        formatDay(simMinutes),
+        formatClock(simMinutes),
+        'optimization',
+        `Dynamic rush response: deploying ${reserveBus.label} to tighten spacing during peak demand.`,
+        simMinutes
+      );
+    }
+  }
 
   const bottleneckStop = stops.find((s) => s.id === 4);
   const hasSevereCongestion =
     bottleneckStop && bottleneckStop.waiting.length >= SIM_CONFIG.severeThreshold;
 
-  if (hasSevereCongestion && !state.auxiliaryBusScheduled) {
-    const newBus = createAuxiliaryBus(buses, 2, 0.2);
-    return {
-      ...state,
-      buses: [...buses, newBus],
-      auxiliaryBusScheduled: true,
-      optimizations: [
-        ...state.optimizations,
+  if (hasSevereCongestion && !next.auxiliaryBusScheduled) {
+    const reserveBus = activateReserveBus(next.buses, 2, 0.2);
+    if (reserveBus) {
+      next.auxiliaryBusScheduled = true;
+      next.optimizations = [
+        ...next.optimizations,
         {
           id: Date.now(),
           active: true,
           stopId: 4,
-          description: `Auxiliary ${newBus.label} deployed to Stop #4 bottleneck`,
+          description: `Activated reserve ${reserveBus.label} for Stop #4 bottleneck`,
         },
-      ],
-      logs: addLog(
-        logs,
+      ];
+      next.logs = addLog(
+        next.logs,
         formatDay(simMinutes),
         formatClock(simMinutes),
         'optimization',
-        `Deploying auxiliary ${newBus.label} ahead of Stop #4 rush-hour surge.`
-      ),
-    };
+        `Activated reserve ${reserveBus.label} for Stop #4 bottleneck.`,
+        simMinutes
+      );
+    }
   }
 
-  return state;
+  if (!rush && hasActiveAux && totalWaiting < SIM_CONFIG.congestionThreshold) {
+    const retired = deactivateAuxiliaryBus(next.buses);
+    if (retired) {
+      next.auxiliaryBusScheduled = false;
+      next.optimizations = [
+        ...next.optimizations,
+        {
+          id: Date.now(),
+          active: false,
+          stopId: retired.segmentIndex + 1,
+          description: `Stood down ${retired.label} as off-peak demand eased`,
+        },
+      ];
+      next.logs = addLog(
+        next.logs,
+        formatDay(simMinutes),
+        formatClock(simMinutes),
+        'optimization',
+        `Stood down ${retired.label} as off-peak demand eased.`,
+        simMinutes
+      );
+    }
+  }
+
+  next.scheduledOptimizations = next.scheduledOptimizations.map((opt) => ({ ...opt }));
+  return next;
 }
 
 function formatDay(simMinutes) {
@@ -282,32 +380,40 @@ export function onDayTransition(prevState, newDayIndex) {
   };
 
   if (scheduleMode === 'dynamic') {
-    const stop4Events = congestionEvents.filter((e) => e.stopId === 4);
+    const prevDayIndex = (newDayIndex + 6) % 7;
+    const previousEvents = congestionEvents.filter((e) => e.dayIndex === prevDayIndex);
 
-    if (stop4Events.length > 0) {
-      const hasAuxiliary = buses.some((b) => b.isAuxiliary);
-      const updatedBuses = hasAuxiliary
-        ? buses
-        : [...buses, createAuxiliaryBus(buses, 2, 0.55)];
+    if (previousEvents.length > 0) {
+      const strongestEvent = previousEvents.reduce((best, event) => {
+        if (!best || event.count > best.count) return event;
+        return best;
+      }, null);
+      const previousTimeOfDay = strongestEvent.simMinutes % (24 * 60);
+      const nextDayStart = prevState.simMinutes - (prevState.simMinutes % (24 * 60));
+      const triggerSimMinutes = Math.max(nextDayStart + previousTimeOfDay - 10, nextDayStart + 1);
 
       next = {
         ...next,
-        buses: updatedBuses,
-        optimizations: [
-          ...next.optimizations.map((o) => ({ ...o, active: true })),
+        scheduledOptimizations: [
+          ...next.scheduledOptimizations,
           {
             id: Date.now(),
-            active: true,
-            stopId: 4,
-            description: 'Reduced headway during morning rush at Stop #4',
+            stopId: strongestEvent.stopId,
+            triggerSimMinutes,
+            segmentIndex: strongestEvent.stopId - 1,
+            progress: 0.2,
+            type: 'activateReserve',
+            description: `Pre-positioning reserve bus ahead of yesterday's congestion at Stop #${strongestEvent.stopId}`,
+            applied: false,
           },
         ],
         logs: addLog(
           next.logs,
           dayLabel,
-          '6:45 AM',
+          '12:00 AM',
           'optimization',
-          `Pre-positioning backup vehicle for Stop #4 — ${stop4Events.length} congestion events logged yesterday.`
+          `Day-two adaptation plan active: reserve bus will deploy before ${formatClock(previousTimeOfDay)} based on yesterday's Stop #${strongestEvent.stopId} bottleneck.`,
+          prevState.simMinutes
         ),
       };
     } else {
@@ -318,7 +424,8 @@ export function onDayTransition(prevState, newDayIndex) {
           dayLabel,
           '12:00 AM',
           'info',
-          'Day rollover: Dynamic schedule maintained — no new bottlenecks detected.'
+          'Day rollover: Dynamic schedule maintained — no new bottlenecks detected.',
+          prevState.simMinutes
         ),
       };
     }
@@ -345,14 +452,28 @@ export function applyScheduleModeChange(state, mode) {
   const congested = stop4 && stop4.waiting.length >= SIM_CONFIG.congestionThreshold;
   if (!congested || state.buses.some((b) => b.isAuxiliary)) return state;
 
-  const newBus = createAuxiliaryBus(state.buses, 2, 0.45);
+  const reserveBus = activateReserveBus(state.buses, 2, 0.45);
+  if (!reserveBus) return state;
+
   return {
     ...state,
-    buses: [...state.buses, newBus],
     auxiliaryBusScheduled: true,
     optimizations: [
       ...state.optimizations,
-      { id: Date.now(), active: true, stopId: 4, description: 'Immediate rush response at Stop #4' },
+      {
+        id: Date.now(),
+        active: true,
+        stopId: 4,
+        description: `Activated ${reserveBus.label} on dynamic schedule start`,
+      },
     ],
+    logs: addLog(
+      state.logs,
+      formatDay(state.simMinutes),
+      formatClock(state.simMinutes),
+      'optimization',
+      `Activated ${reserveBus.label} while entering Dynamic mode due to Stop #4 congestion.`,
+      state.simMinutes
+    ),
   };
 }

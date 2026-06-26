@@ -6,12 +6,15 @@ import {
   Tooltip,
   ResponsiveContainer,
   CartesianGrid,
-  ReferenceLine,
 } from 'recharts';
 
-export default function WaitTimeChart({ history, staticComparison }) {
+export default function WaitTimeChart({ history, staticWaitHistory, scheduleMode }) {
   const base = history.slice(-40);
-  const data = base.map((d) => ({ ...d, staticAvg: staticComparison ? staticComparison.avgWaitTime : null }));
+  const staticBase = scheduleMode === 'dynamic' && staticWaitHistory ? staticWaitHistory.slice(-40) : [];
+  const data = base.map((item, idx) => ({
+    ...item,
+    staticWait: staticBase[idx] ? staticBase[idx].staticWait : null,
+  }));
 
   return (
     <div className="h-44 rounded-xl border border-pulse-border bg-pulse-bg p-3">
@@ -55,10 +58,10 @@ export default function WaitTimeChart({ history, staticComparison }) {
             dot={false}
             name="Satisfaction (%)"
           />
-          {staticComparison && (
+          {scheduleMode === 'dynamic' && (
             <Line
               type="monotone"
-              dataKey="staticAvg"
+              dataKey="staticWait"
               stroke="#ef4444"
               strokeWidth={2}
               dot={false}

@@ -7,6 +7,7 @@ export default function OptimizationConsole({
   formatted,
   metrics,
   staticComparison,
+  staticWaitHistory,
   scheduleMode,
   onScheduleChange,
   logs,
@@ -32,7 +33,11 @@ export default function OptimizationConsole({
 
       <MetricsGrid formatted={formatted} metrics={metrics} staticComparison={staticComparison} />
 
-      <WaitTimeChart history={waitTimeHistory} staticComparison={staticComparison} />
+      <WaitTimeChart
+        history={waitTimeHistory}
+        staticWaitHistory={staticWaitHistory}
+        scheduleMode={scheduleMode}
+      />
 
       <ActionLog logs={logs} />
 

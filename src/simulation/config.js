@@ -23,6 +23,8 @@ export const SIM_CONFIG = {
   dynamicSegmentMinutes: 6,
   offPeakSegmentMinutes: 18,
   busCapacity: 45,
+  baseFleetSize: 4,
+  maxFleetSize: 5,
   rushMorningStart: 7 * 60,
   rushMorningEnd: 9 * 60 + 30,
   middayRushStart: 12 * 60,
