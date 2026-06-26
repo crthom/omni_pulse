@@ -11,17 +11,6 @@ npm run dev
 
 Open [http://localhost:5173](http://localhost:5173).
 
-### Mapbox (optional)
-
-For the full Mapbox GL dark-vector map, copy `.env.example` to `.env` and add your token:
-
-```bash
-cp .env.example .env
-# Edit VITE_MAPBOX_TOKEN with your key from https://account.mapbox.com/access-tokens/
-```
-
-Without a token, the app uses a built-in SVG fallback map — fully functional for demos.
-
 ## Demo Workflow
 
 1. **Phase 1 — Static Baseline:** Simulation starts on Standard Static Schedule. Watch Stop #4 (Chinatown Gate) turn red during morning rush as wait times climb.
