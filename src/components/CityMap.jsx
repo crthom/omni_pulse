@@ -17,7 +17,7 @@ function interpolatePosition(bus, stops) {
 
 function getBusPositionOffset(busId) {
   const angle = ((busId * 137.5) % 360) * (Math.PI / 180);
-  const distance = 0.00012;
+  const distance = 0.00018 + ((busId % 4) * 0.00004);
   return {
     lng: Math.cos(angle) * distance,
     lat: Math.sin(angle) * distance,
@@ -81,7 +81,7 @@ function FallbackMap({ stopsWithLevel, buses, formatted }) {
   const routePath = STOPS.map((s, i) => {
     const p = points.project(s.lng, s.lat);
     return `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`;
-  }).join(' ');
+  }).join(' ') + ` L ${points.project(STOPS[0].lng, STOPS[0].lat).x} ${points.project(STOPS[0].lng, STOPS[0].lat).y}`;
 
   return (
     <div className="relative h-full w-full bg-pulse-bg">

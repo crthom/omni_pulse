@@ -493,6 +493,17 @@ export function runOptimizationTick(state) {
     bus.passengers = 0;
     bus.isAuxiliary = entry.isAuxiliary || false;
 
+    if (bus.isAuxiliary) {
+      next.logs = addLog(
+        next.logs,
+        formatDay(simMinutes),
+        formatClock(simMinutes),
+        'optimization',
+        `Auxiliary bus ${bus.label} deployed to respond to current demand.`,
+        simMinutes
+      );
+    }
+
     next.deploymentsToday = (next.deploymentsToday || 0) + 1;
     return { ...entry, deployed: true };
   });

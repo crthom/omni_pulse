@@ -1,17 +1,20 @@
 export const DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
 export const STOPS = [
-  { id: 1, name: 'Central Station', lng: -122.425, lat: 37.762 },
-  { id: 2, name: 'Market & 5th', lng: -122.415, lat: 37.774 },
-  { id: 3, name: 'Union Square', lng: -122.408, lat: 37.789 },
-  { id: 4, name: 'Chinatown Gate', lng: -122.401, lat: 37.795 },
-  { id: 5, name: 'North Beach', lng: -122.411, lat: 37.805 },
-  { id: 6, name: 'Fishermans Wharf', lng: -122.423, lat: 37.809 },
-  { id: 7, name: 'Marina District', lng: -122.447, lat: 37.806 },
-  { id: 8, name: 'Presidio Gate', lng: -122.436, lat: 37.797 },
+  { id: 1, name: 'Central Station', lng: -122.417, lat: 37.758 },
+  { id: 2, name: 'Market & 5th', lng: -122.407, lat: 37.770 },
+  { id: 3, name: 'Union Square', lng: -122.400, lat: 37.785 },
+  { id: 4, name: 'Chinatown Gate', lng: -122.393, lat: 37.791 },
+  { id: 5, name: 'North Beach', lng: -122.403, lat: 37.801 },
+  { id: 6, name: 'Fishermans Wharf', lng: -122.415, lat: 37.805 },
+  { id: 7, name: 'Marina District', lng: -122.439, lat: 37.802 },
+  { id: 8, name: 'Presidio Gate', lng: -122.428, lat: 37.793 },
 ];
 
-export const ROUTE_COORDINATES = STOPS.map((s) => [s.lng, s.lat]);
+export const ROUTE_COORDINATES = [
+  ...STOPS.map((s) => [s.lng, s.lat]),
+  [STOPS[0].lng, STOPS[0].lat],
+];
 
 export const SIM_CONFIG = {
   minutesPerTick: 2,
