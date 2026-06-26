@@ -145,7 +145,7 @@ function FallbackMap({ stopsWithLevel, buses, formatted }) {
           );
         })}
 
-        {buses.map((bus) => {
+        {buses.filter((bus) => bus.active).map((bus) => {
           const pos = interpolatePosition(
             bus,
             STOPS.map((s) => ({ lng: s.lng, lat: s.lat }))
@@ -242,7 +242,7 @@ export default function CityMap({ stopsWithLevel, buses, formatted }) {
           </Marker>
         ))}
 
-        {buses.map((bus) => {
+        {buses.filter((bus) => bus.active).map((bus) => {
           const pos = interpolatePosition(bus, stopsWithLevel);
           return (
             <Marker key={bus.id} longitude={pos.lng} latitude={pos.lat} anchor="center">

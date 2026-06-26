@@ -2,12 +2,201 @@ import { SIM_CONFIG, STOPS, isRushHour, getDailyScheduleOffset } from './config'
 
 let nextPassengerId = 1;
 
+function createFleet(activeCount = SIM_CONFIG.baseFleetSize, totalCount = SIM_CONFIG.maxFleetSize, startId = 1) {
+  const buses = [];
+  for (let i = 0; i < totalCount; i++) {
+    buses.push({
+      id: startId + i,
+      label: `Bus ${startId + i}`,
+      segmentIndex: 0,
+      progress: 0,
+      remainingSegments: 0,
+      passengers: 0,
+      isAuxiliary: false,
+      active: false,
+    });
+  }
+  return buses;
+}
+
+const DAY_MINUTES = 24 * 60;
+
+function getDayStart(simMinutes) {
+  return simMinutes - (simMinutes % DAY_MINUTES);
+}
+
+function normalizeSchedule(schedule) {
+  return schedule
+    .slice()
+    .sort((a, b) => a.simMinutes - b.simMinutes)
+    .map((entry) => ({ ...entry }));
+}
+
+function mergeIntervals(intervals) {
+  const sorted = intervals
+    .slice()
+    .sort((a, b) => a.start - b.start)
+    .map((interval) => ({ ...interval }));
+
+  const merged = [];
+  sorted.forEach((interval) => {
+    if (!merged.length || merged[merged.length - 1].end < interval.start) {
+      merged.push({ ...interval });
+    } else {
+      merged[merged.length - 1].end = Math.max(merged[merged.length - 1].end, interval.end);
+    }
+  });
+  return merged;
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function buildPeakWindows(events) {
+  if (!events || !events.length) {
+    return [
+      { start: SIM_CONFIG.rushMorningStart, end: SIM_CONFIG.rushMorningEnd },
+      { start: SIM_CONFIG.rushEveningStart, end: SIM_CONFIG.rushEveningEnd },
+    ];
+  }
+
+  const windows = events.map((event) => ({
+    start: clamp(event.simMinutes % DAY_MINUTES - 35, 0, DAY_MINUTES),
+    end: clamp(event.simMinutes % DAY_MINUTES + 35, 0, DAY_MINUTES),
+  }));
+  return mergeIntervals(windows);
+}
+
+function scheduleWithinIntervals(dayStart, intervals, count, isAuxiliarySelector) {
+  const schedule = [];
+  const totalDuration = intervals.reduce((sum, interval) => sum + (interval.end - interval.start), 0);
+  if (totalDuration <= 0 || count <= 0) return schedule;
+
+  let remaining = count;
+  intervals.forEach((interval, idx) => {
+    const duration = interval.end - interval.start;
+    const share = Math.max(1, Math.round((duration / totalDuration) * count));
+    const slots = Math.min(remaining, share);
+    if (slots <= 0) return;
+
+    const step = duration / slots;
+    for (let i = 0; i < slots; i++) {
+      const time = Math.round(dayStart + interval.start + step * (i + 0.5));
+      schedule.push({
+        simMinutes: time,
+        deployed: false,
+        isAuxiliary: isAuxiliarySelector ? isAuxiliarySelector(idx, i, slots) : false,
+      });
+    }
+    remaining -= slots;
+  });
+
+  if (remaining > 0) {
+    const last = intervals[intervals.length - 1];
+    for (let i = 0; i < remaining; i++) {
+      schedule.push({
+        simMinutes: Math.round(dayStart + last.end - i - 1),
+        deployed: false,
+        isAuxiliary: false,
+      });
+    }
+  }
+
+  return normalizeSchedule(schedule).slice(0, count);
+}
+
+function invertIntervals(intervals, boundary = DAY_MINUTES) {
+  const result = [];
+  let cursor = 0;
+  const merged = mergeIntervals(intervals);
+
+  merged.forEach((interval) => {
+    if (interval.start > cursor) {
+      result.push({ start: cursor, end: interval.start });
+    }
+    cursor = interval.end;
+  });
+
+  if (cursor < boundary) {
+    result.push({ start: cursor, end: boundary });
+  }
+
+  return result;
+}
+
+function generateStaticDeploymentSchedule(dayStart, totalDeployments, windowStart) {
+  const scheduleStart = windowStart ?? dayStart;
+  const duration = DAY_MINUTES - (scheduleStart - dayStart);
+  const interval = duration / totalDeployments;
+  const schedule = [];
+
+  for (let i = 0; i < totalDeployments; i++) {
+    const time = Math.round(scheduleStart + interval * (i + 0.5));
+    schedule.push({ simMinutes: Math.min(dayStart + DAY_MINUTES - 1, time), deployed: false, isAuxiliary: false });
+  }
+
+  return normalizeSchedule(schedule);
+}
+
+function generateDynamicDeploymentSchedule(dayStart, totalDeployments, events, windowStart) {
+  const scheduleStart = windowStart ?? dayStart;
+  const startOffset = scheduleStart - dayStart;
+  const peakWindows = buildPeakWindows(events || []);
+  const peakIntervals = peakWindows
+    .map((w) => ({
+      start: Math.max(0, w.start),
+      end: Math.min(DAY_MINUTES, w.end),
+    }))
+    .map((interval) => ({
+      start: Math.max(0, interval.start - startOffset),
+      end: Math.max(0, interval.end - startOffset),
+    }))
+    .filter((interval) => interval.end > interval.start);
+  const offPeakIntervals = invertIntervals(peakIntervals, DAY_MINUTES - startOffset).map((interval) => ({
+    start: Math.max(0, interval.start),
+    end: Math.max(0, interval.end),
+  }));
+
+  const peakDeployments = Math.max(1, Math.round(totalDeployments * 0.6));
+  const offPeakDeployments = totalDeployments - peakDeployments;
+
+  const peakSchedule = scheduleWithinIntervals(scheduleStart, peakIntervals, peakDeployments, (intervalIdx, itemIdx, slots) => {
+    return slots > 1 && itemIdx >= slots - 2;
+  });
+  const offPeakSchedule = scheduleWithinIntervals(scheduleStart, offPeakIntervals, offPeakDeployments, () => false);
+
+  return normalizeSchedule([...peakSchedule, ...offPeakSchedule]);
+}
+
+function generateDeploymentSchedule(currentSimMinutes, scheduleMode, previousDayEvents = []) {
+  const dayStart = getDayStart(currentSimMinutes);
+  const scheduleStart = currentSimMinutes > dayStart ? currentSimMinutes : dayStart;
+  const totalDeployments = SIM_CONFIG.deploymentLimitPerDay;
+
+  if (scheduleMode === 'dynamic') {
+    if (!previousDayEvents || !previousDayEvents.length) {
+      return generateStaticDeploymentSchedule(dayStart, totalDeployments, scheduleStart);
+    }
+    return generateDynamicDeploymentSchedule(dayStart, totalDeployments, previousDayEvents, scheduleStart);
+  }
+
+  return generateStaticDeploymentSchedule(dayStart, totalDeployments, scheduleStart);
+}
+
 export function createInitialState() {
   nextPassengerId = 1;
+  const initialSimMinutes = 7 * 60;
+  const initialScheduleMode = 'static';
+  const initialSchedule = generateDeploymentSchedule(initialSimMinutes, initialScheduleMode, []);
+
   return {
-    simMinutes: 7 * 60,
+    simMinutes: initialSimMinutes,
     scheduleOffsetMinutes: getDailyScheduleOffset(0),
-    scheduleMode: 'static',
+    scheduleMode: initialScheduleMode,
+    pendingScheduleMode: null,
+    deploymentSchedule: initialSchedule,
+    deploymentsToday: 0,
     buses: createFleet(),
     stops: STOPS.map((stop) => ({
       ...stop,
@@ -32,23 +221,6 @@ export function createInitialState() {
     auxiliaryBusScheduled: false,
     dayCount: 0,
   };
-}
-
-function createFleet(activeCount = SIM_CONFIG.baseFleetSize, totalCount = SIM_CONFIG.maxFleetSize, startId = 1) {
-  const buses = [];
-  for (let i = 0; i < totalCount; i++) {
-    buses.push({
-      id: startId + i,
-      label: `Bus ${startId + i}`,
-      segmentIndex: i % STOPS.length,
-      progress: (i / activeCount) * 0.85,
-      passengers: 0,
-      isAuxiliary: false,
-      direction: 1,
-      active: i < activeCount,
-    });
-  }
-  return buses;
 }
 
 export function spawnPassengers(stops, simMinutes, scheduleOffsetMinutes = 0) {
@@ -91,8 +263,8 @@ export function spawnPassengers(stops, simMinutes, scheduleOffsetMinutes = 0) {
   });
 }
 
-function processStopVisit(bus, stop, simMinutes, scheduleMode) {
-  const alightFraction = scheduleMode === 'dynamic' ? 0.65 : 0.4;
+function processStopVisit(bus, stop, simMinutes) {
+  const alightFraction = 0.4;
   const alighting = Math.min(bus.passengers, Math.max(1, Math.ceil(bus.passengers * alightFraction)));
   bus.passengers = Math.max(0, bus.passengers - alighting);
 
@@ -114,11 +286,18 @@ export function moveBuses(buses, stops, simMinutes, scheduleMode) {
     if (!bus.active) return;
     bus.progress += SIM_CONFIG.minutesPerTick / segmentMinutes;
 
-    while (bus.progress >= 1) {
+    while (bus.progress >= 1 && bus.active) {
       bus.progress -= 1;
       bus.segmentIndex = (bus.segmentIndex + 1) % STOPS.length;
+      bus.remainingSegments = Math.max(0, bus.remainingSegments - 1);
       const stop = stops[bus.segmentIndex];
-      if (stop) processStopVisit(bus, stop, simMinutes, scheduleMode);
+      if (stop) processStopVisit(bus, stop, simMinutes);
+
+      if (bus.remainingSegments === 0) {
+        bus.active = false;
+        bus.isAuxiliary = false;
+        break;
+      }
     }
   });
 }
@@ -153,7 +332,10 @@ export function computeStaticComparison(stops, buses, simMinutes) {
     ...stop,
     waiting: stop.waiting.slice(),
   }));
-  const clonedBuses = buses.map((bus) => ({ ...bus }));
+  const clonedBuses = buses.map((bus) => ({
+    ...bus,
+    remainingSegments: bus.remainingSegments || STOPS.length,
+  }));
 
   moveBuses(clonedBuses, clonedStops, simMinutes, 'static');
   return computeMetrics(clonedStops, clonedBuses, simMinutes);
@@ -235,122 +417,47 @@ function deactivateAuxiliaryBus(buses) {
   return activeAux;
 }
 
+function updateRegularFleetActivation(buses, targetActive) {
+  const regular = buses.filter((bus) => !bus.isAuxiliary).sort((a, b) => a.id - b.id);
+  const activeRegular = regular.filter((bus) => bus.active);
+  const inactiveRegular = regular.filter((bus) => !bus.active);
+
+  if (activeRegular.length < targetActive) {
+    inactiveRegular.slice(0, targetActive - activeRegular.length).forEach((bus) => {
+      bus.active = true;
+    });
+  } else if (activeRegular.length > targetActive) {
+    activeRegular
+      .slice(targetActive)
+      .forEach((bus) => {
+        bus.active = false;
+      });
+  }
+}
+
 export function runOptimizationTick(state) {
-  const { scheduleMode, stops, buses, logs, simMinutes, scheduledOptimizations = [] } = state;
-  if (scheduleMode !== 'dynamic') return state;
+  const { deploymentSchedule = [], buses, simMinutes } = state;
+  let next = { ...state, deploymentSchedule: deploymentSchedule.map((entry) => ({ ...entry })) };
 
-  let next = { ...state };
+  next.deploymentSchedule = next.deploymentSchedule.map((entry) => {
+    if (entry.deployed || simMinutes < entry.simMinutes) return entry;
 
-  scheduledOptimizations.forEach((opt) => {
-    if (opt.applied || opt.triggerSimMinutes > simMinutes) return;
-    if (opt.type === 'activateReserve') {
-      const reserveBus = activateReserveBus(next.buses, opt.segmentIndex, opt.progress);
-      if (reserveBus) {
-        next.optimizations = [
-          ...next.optimizations,
-          {
-            id: Date.now(),
-            active: true,
-            stopId: opt.stopId,
-            description: opt.description,
-          },
-        ];
-        next.logs = addLog(
-          next.logs,
-          formatDay(simMinutes),
-          formatClock(simMinutes),
-          'optimization',
-          opt.description,
-          simMinutes
-        );
-        next.auxiliaryBusScheduled = true;
-      }
+    const bus = next.buses.find((b) => !b.active);
+    if (!bus) {
+      return { ...entry, deployed: true };
     }
-    opt.applied = true;
+
+    bus.active = true;
+    bus.segmentIndex = 0;
+    bus.progress = 0;
+    bus.remainingSegments = STOPS.length;
+    bus.passengers = 0;
+    bus.isAuxiliary = entry.isAuxiliary || false;
+
+    next.deploymentsToday = (next.deploymentsToday || 0) + 1;
+    return { ...entry, deployed: true };
   });
 
-  const minutesOfDay = simMinutes % (24 * 60);
-  const rush = isRushHour(minutesOfDay);
-  const hasActiveAux = next.buses.some((bus) => bus.active && bus.isAuxiliary);
-  const totalWaiting = stops.reduce((sum, stop) => sum + stop.waiting.length, 0);
-
-  if (rush && !hasActiveAux) {
-    const reserveBus = activateReserveBus(next.buses, 2, 0.2);
-    if (reserveBus) {
-      next.auxiliaryBusScheduled = true;
-      next.optimizations = [
-        ...next.optimizations,
-        {
-          id: Date.now(),
-          active: true,
-          stopId: 4,
-          description: `Dynamic rush response: deploying ${reserveBus.label} to tighten spacing`,
-        },
-      ];
-      next.logs = addLog(
-        next.logs,
-        formatDay(simMinutes),
-        formatClock(simMinutes),
-        'optimization',
-        `Dynamic rush response: deploying ${reserveBus.label} to tighten spacing during peak demand.`,
-        simMinutes
-      );
-    }
-  }
-
-  const bottleneckStop = stops.find((s) => s.id === 4);
-  const hasSevereCongestion =
-    bottleneckStop && bottleneckStop.waiting.length >= SIM_CONFIG.severeThreshold;
-
-  if (hasSevereCongestion && !next.auxiliaryBusScheduled) {
-    const reserveBus = activateReserveBus(next.buses, 2, 0.2);
-    if (reserveBus) {
-      next.auxiliaryBusScheduled = true;
-      next.optimizations = [
-        ...next.optimizations,
-        {
-          id: Date.now(),
-          active: true,
-          stopId: 4,
-          description: `Activated reserve ${reserveBus.label} for Stop #4 bottleneck`,
-        },
-      ];
-      next.logs = addLog(
-        next.logs,
-        formatDay(simMinutes),
-        formatClock(simMinutes),
-        'optimization',
-        `Activated reserve ${reserveBus.label} for Stop #4 bottleneck.`,
-        simMinutes
-      );
-    }
-  }
-
-  if (!rush && hasActiveAux && totalWaiting < SIM_CONFIG.congestionThreshold) {
-    const retired = deactivateAuxiliaryBus(next.buses);
-    if (retired) {
-      next.auxiliaryBusScheduled = false;
-      next.optimizations = [
-        ...next.optimizations,
-        {
-          id: Date.now(),
-          active: false,
-          stopId: retired.segmentIndex + 1,
-          description: `Stood down ${retired.label} as off-peak demand eased`,
-        },
-      ];
-      next.logs = addLog(
-        next.logs,
-        formatDay(simMinutes),
-        formatClock(simMinutes),
-        'optimization',
-        `Stood down ${retired.label} as off-peak demand eased.`,
-        simMinutes
-      );
-    }
-  }
-
-  next.scheduledOptimizations = next.scheduledOptimizations.map((opt) => ({ ...opt }));
   return next;
 }
 
@@ -369,77 +476,60 @@ function formatClock(simMinutes) {
 }
 
 export function onDayTransition(prevState, newDayIndex) {
-  const { congestionEvents, scheduleMode, buses } = prevState;
   const dayLabel = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'][newDayIndex];
+  const currentMode = prevState.scheduleMode;
+  const nextMode = prevState.pendingScheduleMode || currentMode;
+  const prevDayIndex = (newDayIndex + 6) % 7;
+  const previousEvents = prevState.congestionEvents.filter((e) => e.dayIndex === prevDayIndex);
 
   let next = {
     ...prevState,
     scheduleOffsetMinutes: getDailyScheduleOffset(newDayIndex),
     dayCount: prevState.dayCount + 1,
-    auxiliaryBusScheduled: false,
+    scheduleMode: nextMode,
+    pendingScheduleMode: null,
+    deploymentSchedule: generateDeploymentSchedule(prevState.simMinutes, nextMode, previousEvents),
+    deploymentsToday: 0,
   };
 
-  if (scheduleMode === 'dynamic') {
-    const prevDayIndex = (newDayIndex + 6) % 7;
-    const previousEvents = congestionEvents.filter((e) => e.dayIndex === prevDayIndex);
+  if (prevState.pendingScheduleMode && prevState.pendingScheduleMode !== currentMode) {
+    next.logs = addLog(
+      next.logs,
+      dayLabel,
+      '12:00 AM',
+      'optimization',
+      `Schedule mode switched to ${nextMode.toUpperCase()} at day boundary.`,
+      prevState.simMinutes
+    );
+  }
 
-    if (previousEvents.length > 0) {
-      const strongestEvent = previousEvents.reduce((best, event) => {
-        if (!best || event.count > best.count) return event;
-        return best;
-      }, null);
-      const previousTimeOfDay = strongestEvent.simMinutes % (24 * 60);
-      const nextDayStart = prevState.simMinutes - (prevState.simMinutes % (24 * 60));
-      const triggerSimMinutes = Math.max(nextDayStart + previousTimeOfDay - 10, nextDayStart + 1);
-
-      next = {
-        ...next,
-        scheduledOptimizations: [
-          ...next.scheduledOptimizations,
-          {
-            id: Date.now(),
-            stopId: strongestEvent.stopId,
-            triggerSimMinutes,
-            segmentIndex: strongestEvent.stopId - 1,
-            progress: 0.2,
-            type: 'activateReserve',
-            description: `Pre-positioning reserve bus ahead of yesterday's congestion at Stop #${strongestEvent.stopId}`,
-            applied: false,
-          },
-        ],
-        logs: addLog(
-          next.logs,
-          dayLabel,
-          '12:00 AM',
-          'optimization',
-          `Day-two adaptation plan active: reserve bus will deploy before ${formatClock(previousTimeOfDay)} based on yesterday's Stop #${strongestEvent.stopId} bottleneck.`,
-          prevState.simMinutes
-        ),
-      };
-    } else {
-      next = {
-        ...next,
-        logs: addLog(
-          next.logs,
-          dayLabel,
-          '12:00 AM',
-          'info',
-          'Day rollover: Dynamic schedule maintained — no new bottlenecks detected.',
-          prevState.simMinutes
-        ),
-      };
-    }
+  if (nextMode === 'dynamic' && previousEvents.length > 0) {
+    next.logs = addLog(
+      next.logs,
+      dayLabel,
+      '12:00 AM',
+      'optimization',
+      `Adaptive deployment schedule generated for today from yesterday's congestion data (${previousEvents.length} bottleneck events).`,
+      prevState.simMinutes
+    );
+  } else if (nextMode === 'dynamic') {
+    next.logs = addLog(
+      next.logs,
+      dayLabel,
+      '12:00 AM',
+      'info',
+      'Dynamic mode continues with baseline deployment schedule until congestion patterns are logged.',
+      prevState.simMinutes
+    );
   } else {
-    next = {
-      ...next,
-      logs: addLog(
-        next.logs,
-        dayLabel,
-        '12:00 AM',
-        'alert',
-        'Static schedule unchanged — recurring congestion expected at Stop #4.'
-      ),
-    };
+    next.logs = addLog(
+      next.logs,
+      dayLabel,
+      '12:00 AM',
+      'info',
+      'Standard static schedule reset for the new day.',
+      prevState.simMinutes
+    );
   }
 
   return next;

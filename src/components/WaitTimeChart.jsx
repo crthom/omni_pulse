@@ -11,9 +11,10 @@ import {
 export default function WaitTimeChart({ history, staticWaitHistory, scheduleMode }) {
   const base = history.slice(-40);
   const staticBase = scheduleMode === 'dynamic' && staticWaitHistory ? staticWaitHistory.slice(-40) : [];
-  const data = base.map((item, idx) => ({
+  const staticMap = new Map(staticBase.map((item) => [`${item.day}-${item.time}`, item.staticWait]));
+  const data = base.map((item) => ({
     ...item,
-    staticWait: staticBase[idx] ? staticBase[idx].staticWait : null,
+    staticWait: staticMap.get(`${item.day}-${item.time}`) ?? null,
   }));
 
   return (

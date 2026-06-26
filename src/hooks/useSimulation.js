@@ -14,7 +14,6 @@ import {
   addLog,
   runOptimizationTick,
   onDayTransition,
-  applyScheduleModeChange,
 } from '../simulation/engine';
 
 export function useSimulation() {
@@ -36,6 +35,7 @@ export function useSimulation() {
         next = onDayTransition(next, currentDay);
       }
 
+      next = runOptimizationTick(next);
       spawnPassengers(next.stops, simMinutes, next.scheduleOffsetMinutes);
       moveBuses(next.buses, next.stops, simMinutes, next.scheduleMode);
 
@@ -132,23 +132,20 @@ export function useSimulation() {
   const setScheduleMode = useCallback((mode) => {
     setState((prev) => {
       const formatted = formatSimTime(prev.simMinutes);
-      let next = {
+      if (mode === prev.scheduleMode) return prev;
+
+      return {
         ...prev,
-        scheduleMode: mode,
+        pendingScheduleMode: mode,
         logs: addLog(
           prev.logs,
           formatted.day,
           formatted.time,
-          mode === 'dynamic' ? 'optimization' : 'info',
-          mode === 'dynamic'
-            ? 'Switched to Dynamic AI Schedule — optimization engine active.'
-            : 'Switched to Standard Static Schedule.',
+          'info',
+          `Schedule mode change to ${mode.toUpperCase()} queued for next day boundary.`,
+          prev.simMinutes
         ),
       };
-      if (mode === 'dynamic') {
-        next = applyScheduleModeChange(next, mode);
-      }
-      return next;
     });
   }, []);
 
