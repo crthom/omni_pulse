@@ -236,24 +236,24 @@ export function spawnPassengers(stops, simMinutes, scheduleOffsetMinutes = 0) {
     adjustedMinutes <= SIM_CONFIG.rushEveningEnd;
 
   stops.forEach((stop) => {
-    let rate = 0.06;
+    let rate = 0.02;
 
     if (morningRush) {
-      rate = stop.id === 4 ? 0.42 : stop.id === 3 ? 0.18 : 0.14;
+      rate = stop.id === 4 ? 0.75 : stop.id === 3 ? 0.38 : 0.28;
     } else if (middayRush) {
-      rate = stop.id === 3 ? 0.24 : stop.id === 5 ? 0.2 : 0.12;
+      rate = stop.id === 3 ? 0.48 : stop.id === 5 ? 0.42 : 0.24;
     } else if (eveningRush) {
-      rate = stop.id === 4 ? 0.18 : stop.id === 6 ? 0.32 : stop.id === 8 ? 0.22 : 0.12;
+      rate = stop.id === 4 ? 0.36 : stop.id === 6 ? 0.65 : stop.id === 8 ? 0.48 : 0.24;
     }
 
     if (Math.random() >= rate) return;
 
     const batch =
-      stop.id === 4 && morningRush && Math.random() < 0.35
-        ? 2
-        : stop.id === 6 && eveningRush && Math.random() < 0.3
-        ? 2
-        : stop.id === 8 && eveningRush && Math.random() < 0.2
+      stop.id === 4 && morningRush && Math.random() < 0.5
+        ? 3
+        : stop.id === 6 && eveningRush && Math.random() < 0.45
+        ? 3
+        : stop.id === 8 && eveningRush && Math.random() < 0.35
         ? 2
         : 1;
 
