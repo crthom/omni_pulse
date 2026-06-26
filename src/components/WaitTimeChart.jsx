@@ -1,0 +1,72 @@
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+  ReferenceLine,
+} from 'recharts';
+
+export default function WaitTimeChart({ history, staticComparison }) {
+  const base = history.slice(-40);
+  const data = base.map((d) => ({ ...d, staticAvg: staticComparison ? staticComparison.avgWaitTime : null }));
+
+  return (
+    <div className="h-44 rounded-xl border border-pulse-border bg-pulse-bg p-3">
+      <p className="mb-2 text-xs font-medium uppercase tracking-wider text-slate-500">
+        Wait Time Trend
+      </p>
+      <ResponsiveContainer width="100%" height="85%">
+        <LineChart data={data}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+          <XAxis
+            dataKey="time"
+            tick={{ fill: '#64748b', fontSize: 10 }}
+            interval="preserveStartEnd"
+          />
+          <YAxis
+            tick={{ fill: '#64748b', fontSize: 10 }}
+            unit="m"
+            width={32}
+          />
+          <Tooltip
+            contentStyle={{
+              background: '#111827',
+              border: '1px solid #1e293b',
+              borderRadius: 8,
+              fontSize: 12,
+            }}
+          />
+          <Line
+            type="monotone"
+            dataKey="wait"
+            stroke="#f59e0b"
+            strokeWidth={2}
+            dot={false}
+            name="Wait (min)"
+          />
+          <Line
+            type="monotone"
+            dataKey="satisfaction"
+            stroke="#22c55e"
+            strokeWidth={2}
+            dot={false}
+            name="Satisfaction (%)"
+          />
+          {staticComparison && (
+            <Line
+              type="monotone"
+              dataKey="staticAvg"
+              stroke="#ef4444"
+              strokeWidth={2}
+              dot={false}
+              name="Static Avg (min)"
+            />
+          )}
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
