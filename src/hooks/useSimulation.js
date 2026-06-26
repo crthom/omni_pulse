@@ -74,6 +74,7 @@ export function useSimulation() {
               ]
             : [],
         congestionEvents: [...next.congestionEvents, ...newCongestion],
+        dailyPassengerSamples: [...next.dailyPassengerSamples, metrics.totalWaiting],
       };
 
       const minutesOfDay = simMinutes % (24 * 60);

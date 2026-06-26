@@ -52,14 +52,14 @@ export default function DailyOverview({ overview, onContinue }) {
 
           <div className="rounded-2xl bg-slate-950/70 p-4">
             <p className="text-sm text-slate-400">Avg passengers waiting at day end</p>
-            <p className="mt-2 text-3xl font-semibold text-white">{avgPassengersWaiting.toFixed(1)} pax</p>
+            <p className="mt-2 text-3xl font-semibold text-white">{avgPassengersWaiting.toFixed(1)} passengers</p>
             <p className="mt-2 text-sm text-slate-400">Average number of passengers waiting across stops throughout the day.</p>
           </div>
 
           <div className="rounded-2xl bg-slate-950/70 p-4">
             <p className="text-sm text-slate-400">Previous day's average waiting</p>
             <p className="mt-2 text-3xl font-semibold text-white">
-              {typeof previousDayAvgWaiting === 'number' ? `${previousDayAvgWaiting.toFixed(1)} pax` : 'N/A'}
+              {typeof previousDayAvgWaiting === 'number' ? `${previousDayAvgWaiting.toFixed(1)} passengers` : 'N/A'}
             </p>
             <p className="mt-2 text-sm text-slate-400">
               {previousDayLabel} average waiting count for comparison.

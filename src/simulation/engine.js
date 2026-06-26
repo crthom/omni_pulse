@@ -195,6 +195,10 @@ function summarizeDay(prevState, endedDayIndex) {
   const endedDayEvents = prevState.congestionEvents.filter((event) => event.dayIndex === endedDayIndex);
   const previousDayEvents = prevState.congestionEvents.filter((event) => event.dayIndex === previousDayIndex);
 
+  const samples = prevState.dailyPassengerSamples || [];
+  const totalSampleSum = samples.reduce((sum, val) => sum + val, 0);
+  const fullDayAvgWaiting = samples.length > 0 ? Math.round((totalSampleSum / samples.length) * 10) / 10 : 0;
+
   const incidentCountsByStop = endedDayEvents.reduce((acc, event) => {
     acc[event.stopName] = (acc[event.stopName] || 0) + 1;
     return acc;
@@ -224,7 +228,7 @@ function summarizeDay(prevState, endedDayIndex) {
     previousCongestionIncidents: previousDayEvents.length,
     deploymentCount: prevState.deploymentsToday || 0,
     topStops,
-    avgPassengersWaiting: dayMetrics.avgPassengersWaiting,
+    avgPassengersWaiting: fullDayAvgWaiting,
     previousDayAvgWaiting,
     improvementLabel,
     endedDayIndex,
@@ -263,6 +267,7 @@ export function createInitialState() {
     waitTimeHistory: [],
     staticWaitHistory: [],
     congestionEvents: [],
+    dailyPassengerSamples: [],
     optimizations: [],
     scheduledOptimizations: [],
     auxiliaryBusScheduled: false,
@@ -578,6 +583,7 @@ export function onDayTransition(prevState, newDayIndex) {
     deploymentSchedule: generateDeploymentSchedule(prevState.simMinutes, nextMode, previousEvents),
     deploymentsToday: 0,
     buses: deactivatedBuses,
+    dailyPassengerSamples: [],
     dailySummaries: [...prevState.dailySummaries, newOverview],
     dailyOverview: newOverview,
   };
