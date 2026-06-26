@@ -1,4 +1,4 @@
-import { SIM_CONFIG, STOPS, isRushHour, getDailyScheduleOffset } from './config';
+import { SIM_CONFIG, STOPS, DAYS, isRushHour, getDailyScheduleOffset } from './config';
 
 let nextPassengerId = 1;
 
@@ -184,6 +184,50 @@ function generateDeploymentSchedule(currentSimMinutes, scheduleMode, previousDay
   return generateStaticDeploymentSchedule(dayStart, totalDeployments, scheduleStart);
 }
 
+function summarizeDay(prevState, endedDayIndex) {
+  const endedDayLabel = DAYS[endedDayIndex];
+  const previousDayIndex = (endedDayIndex + 6) % DAYS.length;
+  const previousDayLabel = DAYS[previousDayIndex];
+
+  const endedDayEvents = prevState.congestionEvents.filter((event) => event.dayIndex === endedDayIndex);
+  const previousDayEvents = prevState.congestionEvents.filter((event) => event.dayIndex === previousDayIndex);
+
+  const incidentCountsByStop = endedDayEvents.reduce((acc, event) => {
+    acc[event.stopName] = (acc[event.stopName] || 0) + 1;
+    return acc;
+  }, {});
+
+  const topStops = Object.entries(incidentCountsByStop)
+    .map(([stopName, count]) => ({ stopName, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 3);
+
+  const dayMetrics = prevState.metrics || computeMetrics(prevState.stops, prevState.buses, prevState.simMinutes);
+  const previousSummary = prevState.dailySummaries.find((summary) => summary.endedDayIndex === previousDayIndex);
+  const previousDayAvgWait = previousSummary?.avgWaitTime ?? null;
+  const incidentDelta = endedDayEvents.length - previousDayEvents.length;
+  const improvementLabel = previousDayEvents.length === 0
+    ? 'No prior day incidents available for comparison.'
+    : incidentDelta < 0
+    ? `${Math.abs(incidentDelta)} fewer incidents than ${previousDayLabel}`
+    : incidentDelta > 0
+    ? `${incidentDelta} more incidents than ${previousDayLabel}`
+    : `Same number of incidents as ${previousDayLabel}`;
+
+  return {
+    dayLabel: `${endedDayLabel} overview`,
+    previousDayLabel: `${previousDayLabel} summary`,
+    congestionIncidents: endedDayEvents.length,
+    previousCongestionIncidents: previousDayEvents.length,
+    deploymentCount: prevState.deploymentsToday || 0,
+    topStops,
+    avgWaitTime: Math.round(dayMetrics.avgWaitTime * 10) / 10,
+    previousDayAvgWait,
+    improvementLabel,
+    endedDayIndex,
+  };
+}
+
 export function createInitialState() {
   nextPassengerId = 1;
   const initialSimMinutes = 7 * 60;
@@ -220,6 +264,8 @@ export function createInitialState() {
     scheduledOptimizations: [],
     auxiliaryBusScheduled: false,
     dayCount: 0,
+    dailySummaries: [],
+    dailyOverview: null,
   };
 }
 
@@ -476,11 +522,13 @@ function formatClock(simMinutes) {
 }
 
 export function onDayTransition(prevState, newDayIndex) {
-  const dayLabel = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'][newDayIndex];
+  const dayLabel = DAYS[newDayIndex];
   const currentMode = prevState.scheduleMode;
   const nextMode = prevState.pendingScheduleMode || currentMode;
-  const prevDayIndex = (newDayIndex + 6) % 7;
-  const previousEvents = prevState.congestionEvents.filter((e) => e.dayIndex === prevDayIndex);
+  const endedDayIndex = (newDayIndex + 6) % DAYS.length;
+  const previousEvents = prevState.congestionEvents.filter((e) => e.dayIndex === endedDayIndex);
+
+  const newOverview = summarizeDay(prevState, endedDayIndex);
 
   let next = {
     ...prevState,
@@ -490,6 +538,8 @@ export function onDayTransition(prevState, newDayIndex) {
     pendingScheduleMode: null,
     deploymentSchedule: generateDeploymentSchedule(prevState.simMinutes, nextMode, previousEvents),
     deploymentsToday: 0,
+    dailySummaries: [...prevState.dailySummaries, newOverview],
+    dailyOverview: newOverview,
   };
 
   if (prevState.pendingScheduleMode && prevState.pendingScheduleMode !== currentMode) {

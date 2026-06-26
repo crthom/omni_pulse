@@ -1,5 +1,6 @@
 import CityMap from './components/CityMap';
 import OptimizationConsole from './components/OptimizationConsole';
+import DailyOverview from './components/DailyOverview';
 import { useSimulation } from './hooks/useSimulation';
 
 export default function App() {
@@ -15,10 +16,17 @@ export default function App() {
     setSpeed,
     setScheduleMode,
     resetSimulation,
+    dailyOverview,
+    dismissDailyOverview,
   } = useSimulation();
 
+  const handleContinue = () => {
+    dismissDailyOverview();
+    setIsRunning(true);
+  };
+
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-pulse-bg text-white">
+    <div className="relative flex h-screen w-screen overflow-hidden bg-pulse-bg text-white">
       <div className="relative w-[60%] border-r border-pulse-border">
         <CityMap
           stopsWithLevel={stopsWithLevel}
@@ -43,6 +51,7 @@ export default function App() {
           onReset={resetSimulation}
         />
       </div>
+      <DailyOverview overview={dailyOverview} onContinue={handleContinue} />
     </div>
   );
 }

@@ -129,6 +129,12 @@ export function useSimulation() {
     return () => clearInterval(interval);
   }, [isRunning, speed, tick]);
 
+  useEffect(() => {
+    if (state.dailyOverview && isRunning) {
+      setIsRunning(false);
+    }
+  }, [state.dailyOverview, isRunning]);
+
   const setScheduleMode = useCallback((mode) => {
     setState((prev) => {
       const formatted = formatSimTime(prev.simMinutes);
@@ -167,6 +173,13 @@ export function useSimulation() {
     waitingCount: stop.waiting.length,
   }));
 
+  const dismissDailyOverview = useCallback(() => {
+    setState((prev) => ({
+      ...prev,
+      dailyOverview: null,
+    }));
+  }, []);
+
   return {
     state,
     formatted,
@@ -180,5 +193,7 @@ export function useSimulation() {
     setSpeed,
     setScheduleMode,
     resetSimulation,
+    dailyOverview: state.dailyOverview,
+    dismissDailyOverview,
   };
 }
