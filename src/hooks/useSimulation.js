@@ -39,6 +39,13 @@ export function useSimulation() {
       spawnPassengers(next.stops, simMinutes, next.scheduleOffsetMinutes);
       moveBuses(next.buses, next.stops, simMinutes, next.scheduleMode);
 
+      // Debug: check for duplicate bus IDs
+      const activeBusIds = next.buses.filter(b => b.active).map(b => b.id);
+      const uniqueIds = new Set(activeBusIds);
+      if (uniqueIds.size !== activeBusIds.length) {
+        console.error('Duplicate active bus IDs:', activeBusIds);
+      }
+
       const metrics = computeMetrics(next.stops, next.buses, simMinutes);
       const newCongestion = detectCongestion(next.stops, simMinutes, currentDay);
       const staticComparison = next.scheduleMode === 'dynamic' ? computeStaticComparison(next.stops, next.buses, simMinutes) : null;
@@ -116,8 +123,6 @@ export function useSimulation() {
           );
         });
       }
-
-      next = runOptimizationTick(next);
 
       return { ...next, metrics };
     });

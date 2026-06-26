@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import Map, { Marker, Source, Layer } from 'react-map-gl';
 import { ROUTE_COORDINATES, STOPS } from '../simulation/config';
 
@@ -17,7 +17,7 @@ function interpolatePosition(bus, stops) {
 
 function getBusPositionOffset(busId) {
   const angle = ((busId * 137.5) % 360) * (Math.PI / 180);
-  const distance = 0.00018 + ((busId % 4) * 0.00004);
+  const distance = 0.00008 + ((busId % 4) * 0.00002);
   return {
     lng: Math.cos(angle) * distance,
     lat: Math.sin(angle) * distance,
@@ -182,6 +182,17 @@ function FallbackMap({ stopsWithLevel, buses, formatted }) {
               >
                 {bus.label}
               </text>
+              <text
+                x={renderPos.x}
+                y={renderPos.y + 18}
+                textAnchor="middle"
+                fill="#ffffff"
+                fontSize="7"
+                fontFamily="monospace"
+                opacity="0.7"
+              >
+                ID:{bus.id}
+              </text>
             </g>
           );
         })}
@@ -212,6 +223,28 @@ export default function CityMap({ stopsWithLevel, buses, formatted }) {
     []
   );
 
+  const busPositions = useMemo(() => {
+    const activeBuses = buses.filter((bus) => bus.active);
+    const positions = activeBuses.map((bus) => {
+      const pos = interpolatePosition(bus, stopsWithLevel);
+      const offset = getBusPositionOffset(bus.id);
+      return {
+        bus,
+        longitude: pos.lng + offset.lng,
+        latitude: pos.lat + offset.lat,
+      };
+    });
+    
+    // Debug: log if we have duplicate bus IDs
+    const ids = activeBuses.map(b => b.id);
+    const uniqueIds = new Set(ids);
+    if (uniqueIds.size !== ids.length) {
+      console.error('Duplicate bus IDs in active buses:', ids);
+    }
+    
+    return positions;
+  }, [buses, stopsWithLevel]);
+
   if (!MAPBOX_TOKEN || MAPBOX_TOKEN === 'your_mapbox_token_here') {
     return <FallbackMap stopsWithLevel={stopsWithLevel} buses={buses} formatted={formatted} />;
   }
@@ -221,9 +254,9 @@ export default function CityMap({ stopsWithLevel, buses, formatted }) {
       <Map
         mapboxAccessToken={MAPBOX_TOKEN}
         initialViewState={{
-          longitude: -122.438,
-          latitude: 37.798,
-          zoom: 11.8,
+          longitude: -122.445,
+          latitude: 37.785,
+          zoom: 11.5,
           pitch: 45,
         }}
         mapStyle="mapbox://styles/mapbox/dark-v11"
@@ -252,15 +285,16 @@ export default function CityMap({ stopsWithLevel, buses, formatted }) {
           </Marker>
         ))}
 
-        {buses.filter((bus) => bus.active).map((bus) => {
-          const pos = interpolatePosition(bus, stopsWithLevel);
-          const offset = getBusPositionOffset(bus.id);
-          return (
-            <Marker
-              key={bus.id}
-              longitude={pos.lng + offset.lng}
-              latitude={pos.lat + offset.lat}
-              anchor="center"
+        {busPositions.map(({ bus, longitude, latitude }) => (
+          <Marker
+            key={bus.id}
+            longitude={longitude}
+            latitude={latitude}
+            anchor="center"
+            transitionDuration={0}
+          >
+            <div
+              className="relative flex flex-col items-center"
             >
               <div
                 className={`rounded-full ${bus.isAuxiliary ? 'bg-purple-500' : 'bg-pulse-neon'} animate-glow`}
@@ -271,9 +305,10 @@ export default function CityMap({ stopsWithLevel, buses, formatted }) {
                 }}
                 title={bus.label}
               />
-            </Marker>
-          );
-        })}
+              <span className="mt-1 text-[8px] text-white/70 font-mono">ID:{bus.id}</span>
+            </div>
+          </Marker>
+        ))}
       </Map>
 
       <div className="absolute left-4 top-4 rounded-lg border border-pulse-border bg-pulse-panel/90 px-4 py-2 backdrop-blur">

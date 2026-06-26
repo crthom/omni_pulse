@@ -9,6 +9,8 @@ export const STOPS = [
   { id: 6, name: 'Fishermans Wharf', lng: -122.415, lat: 37.805 },
   { id: 7, name: 'Marina District', lng: -122.439, lat: 37.802 },
   { id: 8, name: 'Presidio Gate', lng: -122.428, lat: 37.793 },
+  { id: 9, name: 'Richmond District', lng: -122.465, lat: 37.785 },
+  { id: 10, name: 'Sunset Plaza', lng: -122.490, lat: 37.775 },
 ];
 
 export const ROUTE_COORDINATES = [
@@ -28,7 +30,7 @@ export const SIM_CONFIG = {
   baseFleetSize: 8,
   dynamicMinActive: 4,
   dynamicRushActive: 8,
-  maxFleetSize: 9,
+  maxFleetSize: 50,
   deploymentLimitPerDay: 50,
   rushMorningStart: 7 * 60,
   rushMorningEnd: 9 * 60 + 30,

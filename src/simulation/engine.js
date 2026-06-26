@@ -1,8 +1,8 @@
-import { SIM_CONFIG, STOPS, DAYS, isRushHour, getDailyScheduleOffset } from './config';
+import { SIM_CONFIG, STOPS, DAYS, isRushHour, getDailyScheduleOffset } from './config.js';
 
 let nextPassengerId = 1;
 
-function createFleet(activeCount = SIM_CONFIG.baseFleetSize, totalCount = SIM_CONFIG.maxFleetSize, startId = 1) {
+export function createFleet(activeCount = SIM_CONFIG.baseFleetSize, totalCount = SIM_CONFIG.maxFleetSize, startId = 1) {
   const buses = [];
   for (let i = 0; i < totalCount; i++) {
     buses.push({
@@ -26,10 +26,13 @@ function getDayStart(simMinutes) {
 }
 
 function normalizeSchedule(schedule) {
-  return schedule
-    .slice()
-    .sort((a, b) => a.simMinutes - b.simMinutes)
-    .map((entry) => ({ ...entry }));
+  const uniqueMap = new Map();
+  schedule.forEach((entry) => {
+    if (!uniqueMap.has(entry.simMinutes)) {
+      uniqueMap.set(entry.simMinutes, { ...entry });
+    }
+  });
+  return Array.from(uniqueMap.values()).sort((a, b) => a.simMinutes - b.simMinutes);
 }
 
 function mergeIntervals(intervals) {
@@ -169,7 +172,7 @@ function generateDynamicDeploymentSchedule(dayStart, totalDeployments, events, w
   return normalizeSchedule([...peakSchedule, ...offPeakSchedule]);
 }
 
-function generateDeploymentSchedule(currentSimMinutes, scheduleMode, previousDayEvents = []) {
+export function generateDeploymentSchedule(currentSimMinutes, scheduleMode, previousDayEvents = []) {
   const dayStart = getDayStart(currentSimMinutes);
   const scheduleStart = currentSimMinutes > dayStart ? currentSimMinutes : dayStart;
   const totalDeployments = SIM_CONFIG.deploymentLimitPerDay;
@@ -477,15 +480,30 @@ function updateRegularFleetActivation(buses, targetActive) {
 export function runOptimizationTick(state) {
   const { deploymentSchedule = [], buses, simMinutes } = state;
   let next = { ...state, deploymentSchedule: deploymentSchedule.map((entry) => ({ ...entry })) };
+  
+  const deployedTimestamps = new Set();
+  let deploymentsThisTick = 0;
 
   next.deploymentSchedule = next.deploymentSchedule.map((entry) => {
     if (entry.deployed || simMinutes < entry.simMinutes) return entry;
-
-    const bus = next.buses.find((b) => !b.active);
-    if (!bus) {
+    
+    // Skip if we've already deployed a bus at this timestamp in this tick
+    if (deployedTimestamps.has(entry.simMinutes)) {
+      console.error(`Skipping duplicate deployment at timestamp ${entry.simMinutes}`);
       return { ...entry, deployed: true };
     }
 
+    const bus = next.buses.find((b) => !b.active);
+    if (!bus) {
+      // Don't mark as deployed if no bus available - skip this deployment
+      console.warn(`No inactive bus available for deployment at ${entry.simMinutes}`);
+      return entry;
+    }
+
+    deployedTimestamps.add(entry.simMinutes);
+    deploymentsThisTick++;
+    console.log(`Deploying bus ${bus.id} at timestamp ${entry.simMinutes} (deployments this tick: ${deploymentsThisTick})`);
+    
     bus.active = true;
     bus.segmentIndex = 0;
     bus.progress = 0;
@@ -507,6 +525,10 @@ export function runOptimizationTick(state) {
     next.deploymentsToday = (next.deploymentsToday || 0) + 1;
     return { ...entry, deployed: true };
   });
+
+  if (deploymentsThisTick > 1) {
+    console.error(`ERROR: Deployed ${deploymentsThisTick} buses in single tick at ${simMinutes}`);
+  }
 
   return next;
 }
@@ -534,6 +556,17 @@ export function onDayTransition(prevState, newDayIndex) {
 
   const newOverview = summarizeDay(prevState, endedDayIndex);
 
+  // Deactivate all buses at day transition to prevent carryover
+  const deactivatedBuses = prevState.buses.map((bus) => ({
+    ...bus,
+    active: false,
+    passengers: 0,
+    segmentIndex: 0,
+    progress: 0,
+    remainingSegments: 0,
+    isAuxiliary: false,
+  }));
+
   let next = {
     ...prevState,
     scheduleOffsetMinutes: getDailyScheduleOffset(newDayIndex),
@@ -542,6 +575,7 @@ export function onDayTransition(prevState, newDayIndex) {
     pendingScheduleMode: null,
     deploymentSchedule: generateDeploymentSchedule(prevState.simMinutes, nextMode, previousEvents),
     deploymentsToday: 0,
+    buses: deactivatedBuses,
     dailySummaries: [...prevState.dailySummaries, newOverview],
     dailyOverview: newOverview,
   };
