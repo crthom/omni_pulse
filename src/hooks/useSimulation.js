@@ -111,7 +111,7 @@ export function useSimulation() {
             formatted.day,
             formatted.time,
             'alert',
-            `Congestion threshold exceeded during ${rushLabel} rush at Stop #${event.stopId} (${event.count} waiting).`,
+            `Congestion threshold exceeded during ${rushLabel} rush at Stop #${event.stopId} (${event.count} waiting). Logging pattern.`,
             eventSim
           );
         });

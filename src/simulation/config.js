@@ -41,7 +41,7 @@ export const SIM_CONFIG = {
   congestionThreshold: 15,
   severeThreshold: 30,
   dailyVariationMinutes: 10,
-  alertCooldownMinutes: 25,
+  alertCooldownMinutes: 45,
 };
 
 export function getDailyScheduleOffset(dayIndex) {
