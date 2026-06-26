@@ -204,7 +204,7 @@ function summarizeDay(prevState, endedDayIndex) {
 
   const dayMetrics = prevState.metrics || computeMetrics(prevState.stops, prevState.buses, prevState.simMinutes);
   const previousSummary = prevState.dailySummaries.find((summary) => summary.endedDayIndex === previousDayIndex);
-  const previousDayAvgWait = previousSummary?.avgWaitTime ?? null;
+  const previousDayAvgWaiting = previousSummary?.avgPassengersWaiting ?? null;
   const incidentDelta = endedDayEvents.length - previousDayEvents.length;
   const improvementLabel = previousDayEvents.length === 0
     ? 'No prior day incidents available for comparison.'
@@ -221,8 +221,8 @@ function summarizeDay(prevState, endedDayIndex) {
     previousCongestionIncidents: previousDayEvents.length,
     deploymentCount: prevState.deploymentsToday || 0,
     topStops,
-    avgWaitTime: Math.round(dayMetrics.avgWaitTime * 10) / 10,
-    previousDayAvgWait,
+    avgPassengersWaiting: dayMetrics.avgPassengersWaiting,
+    previousDayAvgWaiting,
     improvementLabel,
     endedDayIndex,
   };
@@ -350,23 +350,16 @@ export function moveBuses(buses, stops, simMinutes, scheduleMode) {
 
 export function computeMetrics(stops, buses, simMinutes) {
   const allWaiting = stops.reduce((sum, s) => sum + s.waiting.length, 0);
-  const avgWait =
-    allWaiting > 0
-      ? stops.reduce(
-          (sum, s) =>
-            sum + s.waiting.reduce((ws, p) => ws + (simMinutes - p.waitSince), 0),
-          0
-        ) / allWaiting
-      : 0;
+  const avgPassengersWaiting = stops.length > 0 ? allWaiting / stops.length : 0;
 
   const activeBuses = buses.filter((b) => b.active);
   const totalActiveCapacity = Math.max(1, activeBuses.length * SIM_CONFIG.busCapacity);
   const loadFactor = buses.reduce((sum, b) => sum + b.passengers, 0) / totalActiveCapacity;
   const utilization = Math.round(loadFactor * 100);
-  const satisfaction = Math.max(5, Math.min(100, 98 - avgWait * 3.2 - allWaiting * 1.1));
+  const satisfaction = Math.max(5, Math.min(100, 98 - avgPassengersWaiting * 1.8 - allWaiting * 0.5));
 
   return {
-    avgWaitTime: Math.round(avgWait * 10) / 10,
+    avgPassengersWaiting: Math.round(avgPassengersWaiting * 10) / 10,
     fleetUtilization: utilization,
     passengerSatisfaction: Math.round(satisfaction),
     totalWaiting: allWaiting,

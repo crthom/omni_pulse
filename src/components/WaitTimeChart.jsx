@@ -20,7 +20,7 @@ export default function WaitTimeChart({ history, staticWaitHistory, scheduleMode
   return (
     <div className="h-44 rounded-xl border border-pulse-border bg-pulse-bg p-3">
       <p className="mb-2 text-xs font-medium uppercase tracking-wider text-slate-500">
-        Wait Time Trend
+        Passenger Influx Trend
       </p>
       <ResponsiveContainer width="100%" height="85%">
         <LineChart data={data}>
@@ -32,7 +32,6 @@ export default function WaitTimeChart({ history, staticWaitHistory, scheduleMode
           />
           <YAxis
             tick={{ fill: '#64748b', fontSize: 10 }}
-            unit="m"
             width={32}
           />
           <Tooltip
@@ -49,7 +48,7 @@ export default function WaitTimeChart({ history, staticWaitHistory, scheduleMode
             stroke="#f59e0b"
             strokeWidth={2}
             dot={false}
-            name="Wait (min)"
+            name="Avg Waiting Passengers"
           />
           <Line
             type="monotone"
@@ -66,7 +65,7 @@ export default function WaitTimeChart({ history, staticWaitHistory, scheduleMode
               stroke="#ef4444"
               strokeWidth={2}
               dot={false}
-              name="Static Avg (min)"
+              name="Static Avg Waiting"
             />
           )}
         </LineChart>

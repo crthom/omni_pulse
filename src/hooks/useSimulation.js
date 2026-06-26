@@ -42,7 +42,7 @@ export function useSimulation() {
       const metrics = computeMetrics(next.stops, next.buses, simMinutes);
       const newCongestion = detectCongestion(next.stops, simMinutes, currentDay);
       const staticComparison = next.scheduleMode === 'dynamic' ? computeStaticComparison(next.stops, next.buses, simMinutes) : null;
-      const staticWait = next.scheduleMode === 'dynamic' ? staticComparison.avgWaitTime : metrics.avgWaitTime;
+      const staticWait = next.scheduleMode === 'dynamic' ? staticComparison.avgPassengersWaiting : metrics.avgPassengersWaiting;
 
       next = {
         ...next,
@@ -51,7 +51,7 @@ export function useSimulation() {
           {
             time: formatted.time,
             day: formatted.day,
-            wait: metrics.avgWaitTime,
+            wait: metrics.avgPassengersWaiting,
             satisfaction: metrics.passengerSatisfaction,
           },
         ],
@@ -90,7 +90,7 @@ export function useSimulation() {
       if (newCongestion.some((e) => e.stopId === 4)) {
         const evt = newCongestion.find((e) => e.stopId === 4);
         const eventSim = evt ? evt.simMinutes : simMinutes;
-        if (metrics.avgWaitTime > 8 && shouldLogAlert(next.logs, 4, eventSim)) {
+        if (metrics.avgPassengersWaiting > 8 && shouldLogAlert(next.logs, 4, eventSim)) {
           next.logs = addLog(
             next.logs,
             formatted.day,

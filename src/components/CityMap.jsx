@@ -15,6 +15,15 @@ function interpolatePosition(bus, stops) {
   };
 }
 
+function getBusPositionOffset(busId) {
+  const angle = ((busId * 137.5) % 360) * (Math.PI / 180);
+  const distance = 0.00012;
+  return {
+    lng: Math.cos(angle) * distance,
+    lat: Math.sin(angle) * distance,
+  };
+}
+
 function StopMarker({ stop, level, waitingCount }) {
   const colors = {
     clear: '#22c55e',
@@ -150,21 +159,22 @@ function FallbackMap({ stopsWithLevel, buses, formatted }) {
             bus,
             STOPS.map((s) => ({ lng: s.lng, lat: s.lat }))
           );
-          const p = points.project(pos.lng, pos.lat);
+          const offset = getBusPositionOffset(bus.id);
+          const renderPos = points.project(pos.lng + offset.lng, pos.lat + offset.lat);
           return (
             <g key={bus.id}>
-              <circle cx={p.x} cy={p.y} r="12" fill="#00f0ff" opacity="0.25" />
+              <circle cx={renderPos.x} cy={renderPos.y} r="12" fill="#00f0ff" opacity="0.25" />
               <circle
-                cx={p.x}
-                cy={p.y}
+                cx={renderPos.x}
+                cy={renderPos.y}
                 r="6"
                 fill={bus.isAuxiliary ? '#a855f7' : '#00f0ff'}
                 stroke="#fff"
                 strokeWidth="1"
               />
               <text
-                x={p.x}
-                y={p.y - 14}
+                x={renderPos.x}
+                y={renderPos.y - 14}
                 textAnchor="middle"
                 fill="#00f0ff"
                 fontSize="9"
@@ -244,8 +254,14 @@ export default function CityMap({ stopsWithLevel, buses, formatted }) {
 
         {buses.filter((bus) => bus.active).map((bus) => {
           const pos = interpolatePosition(bus, stopsWithLevel);
+          const offset = getBusPositionOffset(bus.id);
           return (
-            <Marker key={bus.id} longitude={pos.lng} latitude={pos.lat} anchor="center">
+            <Marker
+              key={bus.id}
+              longitude={pos.lng + offset.lng}
+              latitude={pos.lat + offset.lat}
+              anchor="center"
+            >
               <div
                 className={`rounded-full ${bus.isAuxiliary ? 'bg-purple-500' : 'bg-pulse-neon'} animate-glow`}
                 style={{

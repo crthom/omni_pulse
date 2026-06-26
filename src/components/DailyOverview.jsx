@@ -8,8 +8,8 @@ export default function DailyOverview({ overview, onContinue }) {
     previousCongestionIncidents,
     deploymentCount,
     topStops,
-    avgWaitTime,
-    previousDayAvgWait,
+    avgPassengersWaiting,
+    previousDayAvgWaiting,
     improvementLabel,
   } = overview;
 
@@ -51,18 +51,18 @@ export default function DailyOverview({ overview, onContinue }) {
           </div>
 
           <div className="rounded-2xl bg-slate-950/70 p-4">
-            <p className="text-sm text-slate-400">Average wait at day end</p>
-            <p className="mt-2 text-3xl font-semibold text-white">{avgWaitTime.toFixed(1)} min</p>
-            <p className="mt-2 text-sm text-slate-400">Last measured average passenger wait.</p>
+            <p className="text-sm text-slate-400">Avg passengers waiting at day end</p>
+            <p className="mt-2 text-3xl font-semibold text-white">{avgPassengersWaiting.toFixed(1)} pax</p>
+            <p className="mt-2 text-sm text-slate-400">Last measured average number of passengers waiting across stops.</p>
           </div>
 
           <div className="rounded-2xl bg-slate-950/70 p-4">
-            <p className="text-sm text-slate-400">Previous day's average wait</p>
+            <p className="text-sm text-slate-400">Previous day's average waiting</p>
             <p className="mt-2 text-3xl font-semibold text-white">
-              {typeof previousDayAvgWait === 'number' ? `${previousDayAvgWait.toFixed(1)} min` : 'N/A'}
+              {typeof previousDayAvgWaiting === 'number' ? `${previousDayAvgWaiting.toFixed(1)} pax` : 'N/A'}
             </p>
             <p className="mt-2 text-sm text-slate-400">
-              {previousDayLabel} average wait for comparison.
+              {previousDayLabel} average waiting count for comparison.
             </p>
           </div>
         </div>

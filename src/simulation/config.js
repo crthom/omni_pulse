@@ -21,7 +21,7 @@ export const SIM_CONFIG = {
   offPeakHeadwayMinutes: 25,
   staticSegmentMinutes: 14,
   offPeakSegmentMinutes: 18,
-  busCapacity: 45,
+  busCapacity: 20,
   baseFleetSize: 8,
   dynamicMinActive: 4,
   dynamicRushActive: 8,
