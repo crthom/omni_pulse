@@ -1,6 +1,6 @@
 const METRICS = [
   { key: 'day', label: 'Day of Week', suffix: '', color: 'text-white' },
-  { key: 'avgPassengersWaiting', label: 'Avg Passengers Waiting', suffix: ' pax', color: 'text-amber-400' },
+  { key: 'avgPassengersWaiting', label: 'Passengers Waiting', suffix: ' passengers', color: 'text-amber-400' },
   { key: 'fleetUtilization', label: 'Fleet Utilization', suffix: '%', color: 'text-cyan-400' },
   { key: 'passengerSatisfaction', label: 'Passenger Satisfaction', suffix: '%', color: 'text-emerald-400' },
 ];
@@ -41,10 +41,10 @@ export default function MetricsGrid({ formatted, metrics, staticComparison }) {
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500">
-                Static Schedule Avg Waiting
+                Static Schedule Waiting Passengers
               </p>
               <p className="mt-1 font-mono text-xl font-bold text-slate-200">
-                {staticComparison.avgPassengersWaiting} pax
+                {staticComparison.avgPassengersWaiting} passengers
               </p>
             </div>
             <div className={`rounded-full border px-2 py-1 text-xs font-semibold ${deltaColor}`}>

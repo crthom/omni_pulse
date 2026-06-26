@@ -53,7 +53,7 @@ export default function DailyOverview({ overview, onContinue }) {
           <div className="rounded-2xl bg-slate-950/70 p-4">
             <p className="text-sm text-slate-400">Avg passengers waiting at day end</p>
             <p className="mt-2 text-3xl font-semibold text-white">{avgPassengersWaiting.toFixed(1)} pax</p>
-            <p className="mt-2 text-sm text-slate-400">Last measured average number of passengers waiting across stops.</p>
+            <p className="mt-2 text-sm text-slate-400">Average number of passengers waiting across stops throughout the day.</p>
           </div>
 
           <div className="rounded-2xl bg-slate-950/70 p-4">

@@ -77,6 +77,9 @@ export function useSimulation() {
       };
 
       const minutesOfDay = simMinutes % (24 * 60);
+      const morningRush = 
+        minutesOfDay >= SIM_CONFIG.rushMorningStart &&
+        minutesOfDay <= SIM_CONFIG.rushMorningEnd;
       const eveningRush =
         minutesOfDay >= SIM_CONFIG.rushEveningStart &&
         minutesOfDay <= SIM_CONFIG.rushEveningEnd;
@@ -94,31 +97,20 @@ export function useSimulation() {
         return true;
       }
 
-      if (newCongestion.some((e) => e.stopId === 4)) {
-        const evt = newCongestion.find((e) => e.stopId === 4);
-        const eventSim = evt ? evt.simMinutes : simMinutes;
-        if (metrics.avgPassengersWaiting > 8 && shouldLogAlert(next.logs, 4, eventSim)) {
-          next.logs = addLog(
-            next.logs,
-            formatted.day,
-            formatted.time,
-            'alert',
-            `Congestion threshold exceeded at Stop #4 (${next.stops[3].waiting.length} waiting). Logging pattern.`,
-            eventSim
-          );
-        }
-      }
-
-      if (eveningRush && newCongestion.length > 0) {
+      if ((morningRush || eveningRush) && newCongestion.length > 0) {
         newCongestion.forEach((event) => {
           const eventSim = event.simMinutes || simMinutes;
           if (!shouldLogAlert(next.logs, event.stopId, eventSim)) return;
+          
+          // Dynamically state whether it's the morning or evening rush in the log
+          const rushLabel = morningRush ? 'morning' : 'evening';
+          
           next.logs = addLog(
             next.logs,
             formatted.day,
             formatted.time,
             'alert',
-            `Congestion threshold exceeded during evening rush at Stop #${event.stopId} (${event.count} waiting).`,
+            `Congestion threshold exceeded during ${rushLabel} rush at Stop #${event.stopId} (${event.count} waiting).`,
             eventSim
           );
         });

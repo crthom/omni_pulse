@@ -48,7 +48,7 @@ export default function WaitTimeChart({ history, staticWaitHistory, scheduleMode
             stroke="#f59e0b"
             strokeWidth={2}
             dot={false}
-            name="Avg Waiting Passengers"
+            name="Waiting Passengers"
           />
           <Line
             type="monotone"
@@ -65,7 +65,7 @@ export default function WaitTimeChart({ history, staticWaitHistory, scheduleMode
               stroke="#ef4444"
               strokeWidth={2}
               dot={false}
-              name="Static Avg Waiting"
+              name="Static Waiting"
             />
           )}
         </LineChart>

@@ -353,16 +353,18 @@ export function moveBuses(buses, stops, simMinutes, scheduleMode) {
 
 export function computeMetrics(stops, buses, simMinutes) {
   const allWaiting = stops.reduce((sum, s) => sum + s.waiting.length, 0);
-  const avgPassengersWaiting = stops.length > 0 ? allWaiting / stops.length : 0;
+  
+  const avgPassengersWaiting = allWaiting; 
 
   const activeBuses = buses.filter((b) => b.active);
   const totalActiveCapacity = Math.max(1, activeBuses.length * SIM_CONFIG.busCapacity);
   const loadFactor = buses.reduce((sum, b) => sum + b.passengers, 0) / totalActiveCapacity;
   const utilization = Math.round(loadFactor * 100);
-  const satisfaction = Math.max(5, Math.min(100, 98 - avgPassengersWaiting * 1.8 - allWaiting * 0.5));
+  
+  const satisfaction = Math.max(5, Math.min(100, 98 - avgPassengersWaiting * 0.5));
 
   return {
-    avgPassengersWaiting: Math.round(avgPassengersWaiting * 10) / 10,
+    avgPassengersWaiting: avgPassengersWaiting, 
     fleetUtilization: utilization,
     passengerSatisfaction: Math.round(satisfaction),
     totalWaiting: allWaiting,

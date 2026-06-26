@@ -1,16 +1,16 @@
 export const DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
 export const STOPS = [
-  { id: 1, name: 'Central Station', lng: -122.4745, lat: 37.758 },
-  { id: 2, name: 'Market & 5th', lng: -122.437, lat: 37.759 },
-  { id: 3, name: 'Union Square', lng: -122.405, lat: 37.765 },
-  { id: 4, name: 'Chinatown Gate', lng: -122.393, lat: 37.791 },
+  { id: 1, name: 'Central Station', lng: -122.489, lat: 37.748 },
+  { id: 2, name: 'Market & 5th', lng: -122.460, lat: 37.749 },
+  { id: 3, name: 'Union Square', lng: -122.425, lat: 37.755 },
+  { id: 4, name: 'Chinatown Gate', lng: -122.398, lat: 37.771 },
   { id: 5, name: 'North Beach', lng: -122.403, lat: 37.801 },
   { id: 6, name: 'Fishermans Wharf', lng: -122.415, lat: 37.805 },
   { id: 7, name: 'Marina District', lng: -122.439, lat: 37.802 },
   { id: 8, name: 'Presidio Gate', lng: -122.445, lat: 37.789 },
-  { id: 9, name: 'Richmond District', lng: -122.465, lat: 37.785 },
-  { id: 10, name: 'Sunset Plaza', lng: -122.480, lat: 37.775 },
+  { id: 9, name: 'Richmond District', lng: -122.478, lat: 37.785 },
+  { id: 10, name: 'Sunset Plaza', lng: -122.495, lat: 37.775 },
 ];
 
 export const ROUTE_COORDINATES = [
