@@ -23,6 +23,15 @@ npm run dev
 
 Open [http://localhost:5173](http://localhost:5173).
 
+**Note**: The application uses Mapbox GL JS for the interactive map. To enable the map, you need to provide a Mapbox access token:
+
+1. Create a `.env` file in the project root:
+   ```
+   VITE_MAPBOX_TOKEN=your_mapbox_token_here
+   ```
+2. Get a free Mapbox access token from [mapbox.com](https://www.mapbox.com/)
+3. Without the token, the app will use an SVG fallback map instead.
+
 ## Demo Workflow
 
 1. **Phase 1 — Static Baseline**: Simulation starts on Standard Static Schedule. Watch Stop #4 (Lincoln Center) turn red during morning rush as wait times climb.
@@ -210,14 +219,19 @@ The application uses GitHub Actions for automatic deployment to GitHub Pages. Th
 1. Enable GitHub Pages in repository settings:
    - Go to Settings → Pages
    - Source: GitHub Actions
-2. Push to `main` branch to trigger automatic deployment
+2. Add Mapbox token as a repository secret:
+   - Go to Settings → Secrets and variables → Actions
+   - Click "New repository secret"
+   - Name: `MAPBOX_TOKEN`
+   - Value: Your Mapbox access token from [mapbox.com](https://www.mapbox.com/)
+3. Push to `main` branch to trigger automatic deployment
 
 The workflow will:
-1. Build the production bundle
+1. Build the production bundle with the Mapbox token
 2. Deploy to GitHub Pages automatically
 3. Publish to https://crthom.github.io/omni_pulse/
 
-**Note**: The Vite config is set with `base: '/omni_pulse/'` to match the repository name for proper asset loading on GitHub Pages.
+**Note**: The Vite config is set with `base: '/omni_pulse/'` to match the repository name for proper asset loading on GitHub Pages. Without the Mapbox token, the deployed site will use the SVG fallback map.
 
 ### Manual Deployment
 
