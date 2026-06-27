@@ -182,17 +182,6 @@ function FallbackMap({ stopsWithLevel, buses, formatted }) {
               >
                 {bus.label}
               </text>
-              <text
-                x={renderPos.x}
-                y={renderPos.y + 18}
-                textAnchor="middle"
-                fill="#ffffff"
-                fontSize="7"
-                fontFamily="monospace"
-                opacity="0.7"
-              >
-                ID:{bus.id}
-              </text>
             </g>
           );
         })}
@@ -224,25 +213,17 @@ export default function CityMap({ stopsWithLevel, buses, formatted }) {
   );
 
   const busPositions = useMemo(() => {
-    const activeBuses = buses.filter((bus) => bus.active);
-    const positions = activeBuses.map((bus) => {
-      const pos = interpolatePosition(bus, stopsWithLevel);
-      const offset = getBusPositionOffset(bus.id);
-      return {
-        bus,
-        longitude: pos.lng + offset.lng,
-        latitude: pos.lat + offset.lat,
-      };
-    });
-    
-    // Debug: log if we have duplicate bus IDs
-    const ids = activeBuses.map(b => b.id);
-    const uniqueIds = new Set(ids);
-    if (uniqueIds.size !== ids.length) {
-      console.error('Duplicate bus IDs in active buses:', ids);
-    }
-    
-    return positions;
+    return buses
+      .filter((bus) => bus.active)
+      .map((bus) => {
+        const pos = interpolatePosition(bus, stopsWithLevel);
+        const offset = getBusPositionOffset(bus.id);
+        return {
+          bus,
+          longitude: pos.lng + offset.lng,
+          latitude: pos.lat + offset.lat,
+        };
+      });
   }, [buses, stopsWithLevel]);
 
   if (!MAPBOX_TOKEN || MAPBOX_TOKEN === 'your_mapbox_token_here') {
@@ -294,19 +275,14 @@ export default function CityMap({ stopsWithLevel, buses, formatted }) {
             transitionDuration={0}
           >
             <div
-              className="relative flex flex-col items-center"
-            >
-              <div
-                className={`rounded-full ${bus.isAuxiliary ? 'bg-purple-500' : 'bg-pulse-neon'} animate-glow`}
-                style={{
-                  width: 14,
-                  height: 14,
-                  boxShadow: `0 0 12px ${bus.isAuxiliary ? '#a855f7' : '#00f0ff'}`,
-                }}
-                title={bus.label}
-              />
-              <span className="mt-1 text-[8px] text-white/70 font-mono">ID:{bus.id}</span>
-            </div>
+              className={`rounded-full ${bus.isAuxiliary ? 'bg-purple-500' : 'bg-pulse-neon'} animate-glow`}
+              style={{
+                width: 14,
+                height: 14,
+                boxShadow: `0 0 12px ${bus.isAuxiliary ? '#a855f7' : '#00f0ff'}`,
+              }}
+              title={bus.label}
+            />
           </Marker>
         ))}
       </Map>

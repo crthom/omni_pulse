@@ -489,28 +489,22 @@ export function runOptimizationTick(state) {
   let next = { ...state, deploymentSchedule: deploymentSchedule.map((entry) => ({ ...entry })) };
   
   const deployedTimestamps = new Set();
-  let deploymentsThisTick = 0;
 
   next.deploymentSchedule = next.deploymentSchedule.map((entry) => {
     if (entry.deployed || simMinutes < entry.simMinutes) return entry;
     
     // Skip if we've already deployed a bus at this timestamp in this tick
     if (deployedTimestamps.has(entry.simMinutes)) {
-      console.error(`Skipping duplicate deployment at timestamp ${entry.simMinutes}`);
       return { ...entry, deployed: true };
     }
 
     const bus = next.buses.find((b) => !b.active);
     if (!bus) {
       // Don't mark as deployed if no bus available - skip this deployment
-      console.warn(`No inactive bus available for deployment at ${entry.simMinutes}`);
       return entry;
     }
 
     deployedTimestamps.add(entry.simMinutes);
-    deploymentsThisTick++;
-    console.log(`Deploying bus ${bus.id} at timestamp ${entry.simMinutes} (deployments this tick: ${deploymentsThisTick})`);
-    
     bus.active = true;
     bus.segmentIndex = 0;
     bus.progress = 0;
@@ -532,10 +526,6 @@ export function runOptimizationTick(state) {
     next.deploymentsToday = (next.deploymentsToday || 0) + 1;
     return { ...entry, deployed: true };
   });
-
-  if (deploymentsThisTick > 1) {
-    console.error(`ERROR: Deployed ${deploymentsThisTick} buses in single tick at ${simMinutes}`);
-  }
 
   return next;
 }
