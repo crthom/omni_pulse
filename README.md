@@ -200,6 +200,34 @@ The system tracks the following key performance indicators:
 
 Dynamic mode includes parallel comparison with static baseline to quantify improvements.
 
+## Deployment
+
+### GitHub Pages (Automated)
+
+The application uses GitHub Actions for automatic deployment to GitHub Pages. The workflow triggers on push to the `main` branch.
+
+**Setup:**
+1. Enable GitHub Pages in repository settings:
+   - Go to Settings → Pages
+   - Source: GitHub Actions
+2. Push to `main` branch to trigger automatic deployment
+
+The workflow will:
+1. Build the production bundle
+2. Deploy to GitHub Pages automatically
+3. Publish to https://crthom.github.io/omni_pulse/
+
+**Note**: The Vite config is set with `base: '/omni_pulse/'` to match the repository name for proper asset loading on GitHub Pages.
+
+### Manual Deployment
+
+To manually build and preview locally:
+
+```bash
+npm run build
+npm run preview
+```
+
 ## Testing
 
 Run the test suite:
