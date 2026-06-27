@@ -14,6 +14,7 @@ import {
   addLog,
   runOptimizationTick,
   onDayTransition,
+  runStaticSimulationTick,
 } from '../simulation/engine';
 
 export function useSimulation() {
@@ -36,12 +37,13 @@ export function useSimulation() {
       }
 
       next = runOptimizationTick(next);
-      spawnPassengers(next.stops, simMinutes, next.scheduleOffsetMinutes);
+      spawnPassengers(next.stops, simMinutes, next.scheduleOffsetMinutes, next.staticStops);
       moveBuses(next.buses, next.stops, simMinutes, next.scheduleMode);
+      next = runStaticSimulationTick(next, simMinutes);
 
       const metrics = computeMetrics(next.stops, next.buses, simMinutes);
       const newCongestion = detectCongestion(next.stops, simMinutes, currentDay);
-      const staticComparison = next.scheduleMode === 'dynamic' ? computeStaticComparison(next.stops, next.buses, simMinutes) : null;
+      const staticComparison = next.scheduleMode === 'dynamic' ? computeStaticComparison(next.staticStops, next.staticBuses, simMinutes) : null;
       const staticWait = next.scheduleMode === 'dynamic' ? staticComparison.avgPassengersWaiting : metrics.avgPassengersWaiting;
 
       next = {

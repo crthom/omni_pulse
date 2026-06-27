@@ -240,6 +240,7 @@ export function createInitialState() {
   const initialSimMinutes = 0 * 60;
   const initialScheduleMode = 'static';
   const initialSchedule = generateDeploymentSchedule(initialSimMinutes, initialScheduleMode, []);
+  const staticSchedule = generateStaticDeploymentSchedule(0, SIM_CONFIG.deploymentLimitPerDay, 0);
 
   return {
     simMinutes: initialSimMinutes,
@@ -274,10 +275,20 @@ export function createInitialState() {
     dayCount: 0,
     dailySummaries: [],
     dailyOverview: null,
+    // Parallel static simulation state
+    staticBuses: createFleet(),
+    staticStops: STOPS.map((stop) => ({
+      ...stop,
+      waiting: [],
+      totalBoarded: 0,
+      peakWait: 0,
+    })),
+    staticDeploymentSchedule: staticSchedule,
+    staticDeploymentsToday: 0,
   };
 }
 
-export function spawnPassengers(stops, simMinutes, scheduleOffsetMinutes = 0) {
+export function spawnPassengers(stops, simMinutes, scheduleOffsetMinutes = 0, staticStops = null) {
   const adjustedMinutes = (simMinutes + scheduleOffsetMinutes + 24 * 60) % (24 * 60);
   const morningRush =
     adjustedMinutes >= SIM_CONFIG.rushMorningStart &&
@@ -312,7 +323,15 @@ export function spawnPassengers(stops, simMinutes, scheduleOffsetMinutes = 0) {
         : 1;
 
     for (let i = 0; i < batch; i++) {
-      stop.waiting.push({ id: nextPassengerId++, waitSince: simMinutes });
+      const passenger = { id: nextPassengerId++, waitSince: simMinutes };
+      stop.waiting.push(passenger);
+      // Add same passenger to static stops for exact comparison
+      if (staticStops) {
+        const staticStop = staticStops.find(s => s.id === stop.id);
+        if (staticStop) {
+          staticStop.waiting.push({ ...passenger });
+        }
+      }
     }
   });
 }
@@ -356,6 +375,71 @@ export function moveBuses(buses, stops, simMinutes, scheduleMode) {
   });
 }
 
+export function runStaticSimulationTick(state, simMinutes) {
+  const { staticBuses, staticStops, staticDeploymentSchedule } = state;
+  
+  // Deploy buses according to static schedule
+  let deployedTimestamps = new Set();
+  state.staticDeploymentSchedule = staticDeploymentSchedule.map((entry) => {
+    if (entry.deployed || simMinutes < entry.simMinutes) return entry;
+    
+    if (deployedTimestamps.has(entry.simMinutes)) {
+      return { ...entry, deployed: true };
+    }
+
+    const bus = staticBuses.find((b) => !b.active);
+    if (!bus) return entry;
+
+    deployedTimestamps.add(entry.simMinutes);
+    bus.active = true;
+    bus.segmentIndex = 0;
+    bus.progress = 0;
+    bus.remainingSegments = STOPS.length;
+    bus.passengers = 0;
+    bus.isAuxiliary = false;
+
+    state.staticDeploymentsToday = (state.staticDeploymentsToday || 0) + 1;
+    return { ...entry, deployed: true };
+  });
+
+  // Move static buses
+  const segmentMinutes = SIM_CONFIG.staticSegmentMinutes;
+  staticBuses.forEach((bus) => {
+    if (!bus.active) return;
+    bus.progress += SIM_CONFIG.minutesPerTick / segmentMinutes;
+
+    while (bus.progress >= 1 && bus.active) {
+      bus.progress -= 1;
+      bus.segmentIndex = (bus.segmentIndex + 1) % STOPS.length;
+      bus.remainingSegments = Math.max(0, bus.remainingSegments - 1);
+      const stop = staticStops[bus.segmentIndex];
+      if (stop) {
+        const alightFraction = 0.4;
+        const alighting = Math.min(bus.passengers, Math.max(1, Math.ceil(bus.passengers * alightFraction)));
+        bus.passengers = Math.max(0, bus.passengers - alighting);
+        
+        const capacity = SIM_CONFIG.busCapacity - bus.passengers;
+        const boarding = stop.waiting.splice(0, capacity);
+        bus.passengers += boarding.length;
+        stop.totalBoarded += boarding.length;
+        
+        boarding.forEach((p) => {
+          const wait = simMinutes - p.waitSince;
+          if (wait > stop.peakWait) stop.peakWait = wait;
+        });
+      }
+
+      if (bus.remainingSegments === 0) {
+        bus.active = false;
+        bus.isAuxiliary = false;
+        break;
+      }
+    }
+  });
+
+  return state;
+}
+
 export function computeMetrics(stops, buses, simMinutes) {
   const allWaiting = stops.reduce((sum, s) => sum + s.waiting.length, 0);
   
@@ -376,18 +460,8 @@ export function computeMetrics(stops, buses, simMinutes) {
   };
 }
 
-export function computeStaticComparison(stops, buses, simMinutes) {
-  const clonedStops = stops.map((stop) => ({
-    ...stop,
-    waiting: stop.waiting.slice(),
-  }));
-  const clonedBuses = buses.map((bus) => ({
-    ...bus,
-    remainingSegments: bus.remainingSegments || STOPS.length,
-  }));
-
-  moveBuses(clonedBuses, clonedStops, simMinutes, 'static');
-  return computeMetrics(clonedStops, clonedBuses, simMinutes);
+export function computeStaticComparison(staticStops, staticBuses, simMinutes) {
+  return computeMetrics(staticStops, staticBuses, simMinutes);
 }
 
 export function detectCongestion(stops, simMinutes, dayIndex) {
@@ -564,6 +638,27 @@ export function onDayTransition(prevState, newDayIndex) {
     isAuxiliary: false,
   }));
 
+  // Reset static simulation state for new day
+  const deactivatedStaticBuses = prevState.staticBuses.map((bus) => ({
+    ...bus,
+    active: false,
+    passengers: 0,
+    segmentIndex: 0,
+    progress: 0,
+    remainingSegments: 0,
+    isAuxiliary: false,
+  }));
+
+  const resetStaticStops = prevState.staticStops.map((stop) => ({
+    ...stop,
+    waiting: [],
+    totalBoarded: 0,
+    peakWait: 0,
+  }));
+
+  const dayStart = getDayStart(prevState.simMinutes);
+  const staticSchedule = generateStaticDeploymentSchedule(dayStart, SIM_CONFIG.deploymentLimitPerDay, prevState.simMinutes);
+
   let next = {
     ...prevState,
     scheduleOffsetMinutes: getDailyScheduleOffset(newDayIndex),
@@ -576,6 +671,11 @@ export function onDayTransition(prevState, newDayIndex) {
     dailyPassengerSamples: [],
     dailySummaries: [...prevState.dailySummaries, newOverview],
     dailyOverview: newOverview,
+    // Reset static simulation state
+    staticBuses: deactivatedStaticBuses,
+    staticStops: resetStaticStops,
+    staticDeploymentSchedule: staticSchedule,
+    staticDeploymentsToday: 0,
   };
 
   if (prevState.pendingScheduleMode && prevState.pendingScheduleMode !== currentMode) {
