@@ -22,7 +22,7 @@ export default function MetricsGrid({ formatted, metrics, staticComparison, depl
       ? Math.round((values.passengersWaiting - staticComparison.avgPassengersWaiting) * 10) / 10
       : null;
   const deltaText = staticDelta === 0 ? '±0 pax' : staticDelta > 0 ? `+${staticDelta} pax` : `${staticDelta} pax`;
-  const deltaColor = staticDelta > 0 ? 'text-rose-400' : 'text-emerald-400';
+  const deltaColor = staticDelta === 0 ? 'text-slate-400' : staticDelta > 0 ? 'text-rose-400' : 'text-emerald-400';
 
   return (
     <div className="grid grid-cols-2 gap-3">
@@ -51,7 +51,7 @@ export default function MetricsGrid({ formatted, metrics, staticComparison, depl
                 {staticComparison.avgPassengersWaiting} passengers
               </p>
             </div>
-            <div className={`rounded-full border px-2 py-1 text-xs font-semibold ${deltaColor}`}>
+            <div className={`rounded-full border border-pulse-border px-2 py-1 text-xs font-semibold ${deltaColor}`}>
               {deltaText}
             </div>
           </div>

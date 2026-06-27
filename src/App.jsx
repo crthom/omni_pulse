@@ -18,6 +18,8 @@ export default function App() {
     resetSimulation,
     dailyOverview,
     dismissDailyOverview,
+    addCityEvent,
+    eventAddedToday,
   } = useSimulation();
 
   const handleContinue = () => {
@@ -50,6 +52,8 @@ export default function App() {
           onSpeedChange={setSpeed}
           onReset={resetSimulation}
           deploymentsToday={state.deploymentsToday}
+          onAddCityEvent={addCityEvent}
+          eventAddedToday={eventAddedToday}
         />
       </div>
       <DailyOverview overview={dailyOverview} onContinue={handleContinue} />

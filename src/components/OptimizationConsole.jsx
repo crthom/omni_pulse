@@ -18,6 +18,8 @@ export default function OptimizationConsole({
   onSpeedChange,
   onReset,
   deploymentsToday,
+  onAddCityEvent,
+  eventAddedToday,
 }) {
   return (
     <div className="flex h-full flex-col gap-4 overflow-y-auto p-5">
@@ -49,6 +51,17 @@ export default function OptimizationConsole({
           className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
         >
           {isRunning ? 'Pause' : 'Resume'}
+        </button>
+        <button
+          type="button"
+          onClick={onAddCityEvent}
+          className={`rounded-lg px-4 py-2 text-sm font-medium text-white ${
+            eventAddedToday
+              ? 'bg-slate-600 hover:bg-slate-500 cursor-not-allowed'
+              : 'bg-amber-600 hover:bg-amber-500'
+          }`}
+        >
+          Add City Event
         </button>
         <select
           value={speed}

@@ -2,6 +2,39 @@ import { SIM_CONFIG, STOPS, DAYS, isRushHour, getDailyScheduleOffset } from './c
 
 let nextPassengerId = 1;
 
+const EVENT_TYPES = [
+  { type: 'concert', description: 'Concert', trafficMultiplier: 2.5 },
+  { type: 'football', description: 'Football Game', trafficMultiplier: 2.2 },
+  { type: 'baseball', description: 'Baseball Game', trafficMultiplier: 1.8 },
+  { type: 'basketball', description: 'Basketball Game', trafficMultiplier: 2.0 },
+  { type: 'hockey', description: 'Hockey Game', trafficMultiplier: 1.9 },
+  { type: 'marathon', description: 'Marathon', trafficMultiplier: 1.5 },
+];
+
+export function generateRandomCityEvent(currentSimMinutes) {
+  const eventType = EVENT_TYPES[Math.floor(Math.random() * EVENT_TYPES.length)];
+  const stopId = Math.floor(Math.random() * 10) + 1;
+  const stop = STOPS.find(s => s.id === stopId);
+  
+  // Event time: tomorrow at a random time between 3 PM and 7 PM
+  const dayStart = getDayStart(currentSimMinutes);
+  const eventDayStart = dayStart + (24 * 60);
+  const randomHour = 15 + Math.floor(Math.random() * 5); // 3 PM to 7 PM
+  const randomMinute = Math.floor(Math.random() * 60);
+  const eventTime = eventDayStart + (randomHour * 60) + randomMinute;
+  
+  return {
+    id: Date.now() + Math.random(),
+    type: eventType.type,
+    description: eventType.description,
+    stopId: stopId,
+    stopName: stop ? stop.name : `Stop #${stopId}`,
+    simMinutes: eventTime,
+    trafficMultiplier: eventType.trafficMultiplier,
+    processed: false,
+  };
+}
+
 export function createFleet(activeCount = SIM_CONFIG.baseFleetSize, totalCount = SIM_CONFIG.maxFleetSize, startId = 1) {
   const buses = [];
   for (let i = 0; i < totalCount; i++) {
@@ -142,10 +175,13 @@ function generateStaticDeploymentSchedule(dayStart, totalDeployments, windowStar
   return normalizeSchedule(schedule);
 }
 
-function generateDynamicDeploymentSchedule(dayStart, totalDeployments, events, windowStart) {
+function generateDynamicDeploymentSchedule(dayStart, totalDeployments, events, windowStart, cityEvents = []) {
   const scheduleStart = windowStart ?? dayStart;
   const startOffset = scheduleStart - dayStart;
-  const peakWindows = buildPeakWindows(events || []);
+  
+  // Combine congestion events with city events for peak windows
+  const allEvents = [...(events || []), ...cityEvents];
+  const peakWindows = buildPeakWindows(allEvents);
   const peakIntervals = peakWindows
     .map((w) => ({
       start: Math.max(0, w.start),
@@ -172,7 +208,7 @@ function generateDynamicDeploymentSchedule(dayStart, totalDeployments, events, w
   return normalizeSchedule([...peakSchedule, ...offPeakSchedule]);
 }
 
-export function generateDeploymentSchedule(currentSimMinutes, scheduleMode, previousDayEvents = []) {
+export function generateDeploymentSchedule(currentSimMinutes, scheduleMode, previousDayEvents = [], cityEvents = []) {
   const dayStart = getDayStart(currentSimMinutes);
   const scheduleStart = currentSimMinutes > dayStart ? currentSimMinutes : dayStart;
   const totalDeployments = SIM_CONFIG.deploymentLimitPerDay;
@@ -181,7 +217,7 @@ export function generateDeploymentSchedule(currentSimMinutes, scheduleMode, prev
     if (!previousDayEvents || !previousDayEvents.length) {
       return generateStaticDeploymentSchedule(dayStart, totalDeployments, scheduleStart);
     }
-    return generateDynamicDeploymentSchedule(dayStart, totalDeployments, previousDayEvents, scheduleStart);
+    return generateDynamicDeploymentSchedule(dayStart, totalDeployments, previousDayEvents, scheduleStart, cityEvents);
   }
 
   return generateStaticDeploymentSchedule(dayStart, totalDeployments, scheduleStart);
@@ -275,6 +311,7 @@ export function createInitialState() {
     dayCount: 0,
     dailySummaries: [],
     dailyOverview: null,
+    cityEvents: [],
     // Parallel static simulation state
     staticBuses: createFleet(),
     staticStops: STOPS.map((stop) => ({
@@ -625,6 +662,12 @@ export function onDayTransition(prevState, newDayIndex) {
   const endedDayIndex = (newDayIndex + 6) % DAYS.length;
   const previousEvents = prevState.congestionEvents.filter((e) => e.dayIndex === endedDayIndex);
 
+  // Check for upcoming city events today
+  const dayStart = getDayStart(prevState.simMinutes);
+  const todayEvents = prevState.cityEvents.filter(
+    (event) => event.simMinutes >= dayStart && event.simMinutes < dayStart + (24 * 60)
+  );
+
   const newOverview = summarizeDay(prevState, endedDayIndex);
 
   // Deactivate all buses at day transition to prevent carryover
@@ -656,7 +699,6 @@ export function onDayTransition(prevState, newDayIndex) {
     peakWait: 0,
   }));
 
-  const dayStart = getDayStart(prevState.simMinutes);
   const staticSchedule = generateStaticDeploymentSchedule(dayStart, SIM_CONFIG.deploymentLimitPerDay, prevState.simMinutes);
 
   let next = {
@@ -665,7 +707,7 @@ export function onDayTransition(prevState, newDayIndex) {
     dayCount: prevState.dayCount + 1,
     scheduleMode: nextMode,
     pendingScheduleMode: null,
-    deploymentSchedule: generateDeploymentSchedule(prevState.simMinutes, nextMode, previousEvents),
+    deploymentSchedule: generateDeploymentSchedule(prevState.simMinutes, nextMode, previousEvents, todayEvents),
     deploymentsToday: 0,
     buses: deactivatedBuses,
     dailyPassengerSamples: [],
@@ -714,6 +756,22 @@ export function onDayTransition(prevState, newDayIndex) {
       '12:00 AM',
       'info',
       'Standard static schedule reset for the new day.',
+      prevState.simMinutes
+    );
+  }
+
+  // Log optimization message for upcoming city events
+  if (todayEvents.length > 0) {
+    const eventDescriptions = todayEvents.map(e => {
+      const eventTime = formatClock(e.simMinutes);
+      return `${e.description} at ${eventTime} near ${e.stopName}`;
+    }).join(', ');
+    next.logs = addLog(
+      next.logs,
+      dayLabel,
+      '12:00 AM',
+      'optimization',
+      `Optimizing based on yesterday's bottlenecks and today's predicted increased traffic for: ${eventDescriptions}.`,
       prevState.simMinutes
     );
   }

@@ -15,6 +15,7 @@ import {
   runOptimizationTick,
   onDayTransition,
   runStaticSimulationTick,
+  generateRandomCityEvent,
 } from '../simulation/engine';
 
 export function useSimulation() {
@@ -22,6 +23,7 @@ export function useSimulation() {
   const [isRunning, setIsRunning] = useState(true);
   const [speed, setSpeed] = useState(1);
   const lastDayRef = useRef(0);
+  const lastEventDayRef = useRef(-1);
 
   const tick = useCallback(() => {
     setState((prev) => {
@@ -157,8 +159,9 @@ export function useSimulation() {
   const metrics = state.metrics || computeMetrics(state.stops, state.buses, state.simMinutes);
   const staticComparison =
     state.scheduleMode === 'dynamic'
-      ? computeStaticComparison(state.stops, state.buses, state.simMinutes)
+      ? computeStaticComparison(state.staticStops, state.staticBuses, state.simMinutes)
       : null;
+  const eventAddedToday = lastEventDayRef.current === formatted.dayIndex;
 
   const stopsWithLevel = state.stops.map((stop) => ({
     ...stop,
@@ -171,6 +174,35 @@ export function useSimulation() {
       ...prev,
       dailyOverview: null,
     }));
+  }, []);
+
+  const addCityEvent = useCallback(() => {
+    setState((prev) => {
+      const formatted = formatSimTime(prev.simMinutes);
+      const currentDay = formatted.dayIndex;
+      
+      // Check if an event was already added today
+      if (lastEventDayRef.current === currentDay) {
+        return prev;
+      }
+      
+      lastEventDayRef.current = currentDay;
+      const newEvent = generateRandomCityEvent(prev.simMinutes);
+      const eventTime = formatSimTime(newEvent.simMinutes);
+      
+      return {
+        ...prev,
+        cityEvents: [...prev.cityEvents, newEvent],
+        logs: addLog(
+          prev.logs,
+          formatted.day,
+          formatted.time,
+          'info',
+          `${newEvent.description} tomorrow at ${eventTime.time} near ${newEvent.stopName} - heavy traffic expected`,
+          prev.simMinutes
+        ),
+      };
+    });
   }, []);
 
   return {
@@ -188,5 +220,7 @@ export function useSimulation() {
     resetSimulation,
     dailyOverview: state.dailyOverview,
     dismissDailyOverview,
+    addCityEvent,
+    eventAddedToday,
   };
 }
