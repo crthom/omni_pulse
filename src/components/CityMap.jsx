@@ -254,9 +254,9 @@ export default function CityMap({ stopsWithLevel, buses, formatted }) {
       <Map
         mapboxAccessToken={MAPBOX_TOKEN}
         initialViewState={{
-          longitude: -122.445,
-          latitude: 37.785,
-          zoom: 11.5,
+          longitude: -73.96564,
+          latitude: 40.78241,
+          zoom: 12.25,
           pitch: 45,
         }}
         mapStyle="mapbox://styles/mapbox/dark-v11"

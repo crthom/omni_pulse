@@ -1,16 +1,16 @@
 export const DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
 export const STOPS = [
-  { id: 1, name: 'Central Station', lng: -122.489, lat: 37.748 },
-  { id: 2, name: 'Market & 5th', lng: -122.460, lat: 37.749 },
-  { id: 3, name: 'Union Square', lng: -122.425, lat: 37.755 },
-  { id: 4, name: 'Chinatown Gate', lng: -122.398, lat: 37.771 },
-  { id: 5, name: 'North Beach', lng: -122.403, lat: 37.801 },
-  { id: 6, name: 'Fishermans Wharf', lng: -122.415, lat: 37.805 },
-  { id: 7, name: 'Marina District', lng: -122.439, lat: 37.802 },
-  { id: 8, name: 'Presidio Gate', lng: -122.445, lat: 37.789 },
-  { id: 9, name: 'Richmond District', lng: -122.478, lat: 37.785 },
-  { id: 10, name: 'Sunset Plaza', lng: -122.495, lat: 37.775 },
+  { id: 1, name: 'Columbia University', lng: -73.96105, lat: 40.80683 },
+  { id: 2, name: "St. Michael's Church", lng: -73.96873, lat: 40.79629 },
+  { id: 3, name: "Children's Museum", lng: -73.97656, lat: 40.78557 },
+  { id: 4, name: 'Lincoln Center', lng: -73.98556, lat: 40.77321 },
+  { id: 5, name: 'New York Public Library', lng: -73.99134, lat: 40.76531 },
+  { id: 6, name: "Turtle's Bay", lng: -73.97029, lat: 40.75647 },
+  { id: 7, name: 'Upper East Side', lng: -73.96061, lat: 40.76975 },
+  { id: 8, name: 'Central Park', lng: -73.95465, lat: 40.77790 },
+  { id: 9, name: '23rd Precinct', lng: -73.94669, lat: 40.78881 },
+  { id: 10, name: 'East Harlem', lng: -73.94002, lat: 40.79796 },
 ];
 
 export const ROUTE_COORDINATES = [
