@@ -1,6 +1,6 @@
 const METRICS = [
   { key: 'deploymentCap', label: 'Deployment Cap', suffix: '%', color: 'text-white' },
-  { key: 'passengersWaiting', label: 'Passengers Waiting', suffix: ' passengers', color: 'text-amber-400' },
+  { key: 'passengersWaiting', label: 'Passengers Waiting', suffix: ' pax', color: 'text-amber-400' },
   { key: 'crowdingLevel', label: 'Crowding Level', suffix: '%', color: 'text-cyan-400' },
   { key: 'passengerSatisfaction', label: 'Passenger Satisfaction', suffix: '%', color: 'text-emerald-400' },
 ];
