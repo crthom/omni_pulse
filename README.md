@@ -86,6 +86,7 @@ omni_pulse/
 ### Core Components
 
 **Simulation Engine** (`src/simulation/engine.js`)
+
 - **State Management**: Maintains complete simulation state including buses, stops, passengers, and schedules
 - **Passenger Spawning**: Generates passengers with time-varying rates based on rush hour patterns
 - **Bus Movement**: Simulates bus travel along route segments with realistic timing
@@ -95,6 +96,7 @@ omni_pulse/
 - **Parallel Simulation**: Runs a baseline static simulation for comparison metrics
 
 **Configuration** (`src/simulation/config.js`)
+
 - Route coordinates and stop locations (10 stops across Manhattan)
 - Simulation timing parameters (tick rate, minutes per tick)
 - Fleet configuration (capacity, base fleet size, maximum fleet)
@@ -105,12 +107,14 @@ omni_pulse/
 ### Schedule Modes
 
 **Static Mode**
+
 - Fixed deployment intervals throughout the day
 - Base headway: 18 minutes during rush hours, 25 minutes off-peak
 - No adaptation to current conditions
 - Serves as baseline for comparison
 
 **Dynamic Mode**
+
 - Adaptive deployment based on previous day's congestion patterns
 - Reduced headway: 8 minutes during rush hours
 - Strategic auxiliary bus deployment before predicted bottlenecks
@@ -120,6 +124,7 @@ omni_pulse/
 ### City Events
 
 The system supports various city events that affect traffic patterns:
+
 - **Concerts**: 2.5× traffic multiplier
 - **Football Games**: 2.2× traffic multiplier
 - **Basketball Games**: 2.0× traffic multiplier
@@ -168,7 +173,7 @@ Edit `src/simulation/config.js`:
 
 ```javascript
 export const STOPS = [
-  { id: 1, name: 'Stop Name', lng: -73.96105, lat: 40.80683 },
+  { id: 1, name: "Stop Name", lng: -73.96105, lat: 40.80683 },
   // Add more stops...
 ];
 ```
@@ -190,8 +195,8 @@ Extend `EVENT_TYPES` in `src/simulation/engine.js`:
 
 ```javascript
 const EVENT_TYPES = [
-  { type: 'concert', description: 'Concert', trafficMultiplier: 2.5 },
-  { type: 'festival', description: 'Street Festival', trafficMultiplier: 1.7 },
+  { type: "concert", description: "Concert", trafficMultiplier: 2.5 },
+  { type: "festival", description: "Street Festival", trafficMultiplier: 1.7 },
   // Add more event types...
 ];
 ```
@@ -216,6 +221,7 @@ Dynamic mode includes parallel comparison with static baseline to quantify impro
 The application uses GitHub Actions for automatic deployment to GitHub Pages. The workflow triggers on push to the `main` branch.
 
 **Setup:**
+
 1. Enable GitHub Pages in repository settings:
    - Go to Settings → Pages
    - Source: GitHub Actions
@@ -227,6 +233,7 @@ The application uses GitHub Actions for automatic deployment to GitHub Pages. Th
 3. Push to `main` branch to trigger automatic deployment
 
 The workflow will:
+
 1. Build the production bundle with the Mapbox token
 2. Deploy to GitHub Pages automatically
 3. Publish to https://crthom.github.io/omni_pulse/
@@ -259,10 +266,10 @@ Tests are located in the `test/` directory and use Node.js's built-in test runne
 - Safari
 - Requires WebGL support for Mapbox GL JS
 
+## Demo Link
+
+Check out [this link][https://crthom.github.io/omni_pulse/] for a deployed version of the application
+
 ## License
 
 MIT
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
