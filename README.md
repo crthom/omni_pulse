@@ -268,7 +268,7 @@ Tests are located in the `test/` directory and use Node.js's built-in test runne
 
 ## Demo Link
 
-Check out [this link][https://crthom.github.io/omni_pulse/] for a deployed version of the application
+Check out [this link](https://crthom.github.io/omni_pulse/) for a deployed version of the application
 
 ## License
 
