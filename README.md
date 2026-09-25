@@ -269,6 +269,7 @@ Tests are located in the `test/` directory and use Node.js's built-in test runne
 ## Demo Link
 
 Check out [this link](https://crthom.github.io/omni_pulse/) for a deployed version of the application
+
 *Note: There are issues with the mapbox api, so the map might not load. If this is the case, run the application locally and replace the Mapbox key with your own.*
 
 ## License
